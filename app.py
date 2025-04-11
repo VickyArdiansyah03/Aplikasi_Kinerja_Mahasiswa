@@ -48,7 +48,7 @@ def logout():
 # ======================= HALAMAN LOGIN =======================
 if not st.session_state["logged_in"]:
     with st.container():
-        st.title("🔐 Login Prediksi Kelulusan")
+        st.title("🔐 Login Prediksi Kinerja Mahasiswa")
         nama_user = st.text_input("🧑 Nama Lengkap")
         role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen"])
 
