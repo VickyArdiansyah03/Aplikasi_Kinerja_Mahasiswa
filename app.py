@@ -106,48 +106,63 @@ elif st.session_state["user_role"] == "Dosen":
         st.rerun()
 
     st.subheader(f"📚 Selamat datang, {st.session_state['user_name']}")
-    st.markdown("Berikut data mahasiswa berdasarkan jurusan Anda:")
+    st.markdown("Silakan upload file data mahasiswa (.xlsx):")
 
-    jurusan_mapping = {
-        "Dr. Ahmad": "Teknik Informatika",
-        "Prof. Budi": "Sistem Informasi",
-        "Dr. Siti": "Akuntansi",
-        "Dr. Rina": "Manajemen",
-        "Ir.Bambang": "Teknik Elektro"
-    }
+    uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"])
 
-    jurusan = jurusan_mapping.get(st.session_state["user_name"])
-    df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan] if jurusan else pd.DataFrame()
+    if uploaded_file is not None:
+        try:
+            df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
 
-    if not df_filtered.empty:
-        st.dataframe(df_filtered)
+            jurusan_mapping = {
+                "Dr. Ahmad": "Teknik Informatika",
+                "Prof. Budi": "Sistem Informasi",
+                "Dr. Siti": "Akuntansi",
+                "Dr. Rina": "Manajemen",
+                "Ir.Bambang": "Teknik Elektro"
+            }
 
-        df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-        df_filtered['Prob_Lulus'] = df_filtered.apply(lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else 85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
-        df_filtered['Prob_Tidak_Lulus'] = 100.0 - df_filtered['Prob_Lulus']
+            jurusan = jurusan_mapping.get(st.session_state["user_name"])
+            df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan] if jurusan else pd.DataFrame()
 
-        st.markdown("#### 🔮 Prediksi Mahasiswa")
-        st.dataframe(df_filtered[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+            if not df_filtered.empty:
+                st.markdown("### 🎓 Data Mahasiswa")
+                st.dataframe(df_filtered)
 
-        st.markdown("#### 📊 Rata-rata Probabilitas")
-        avg_lulus = df_filtered['Prob_Lulus'].mean()
-        avg_tidak = df_filtered['Prob_Tidak_Lulus'].mean()
+                df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+                df_filtered['Prob_Lulus'] = df_filtered.apply(
+                    lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
+                                85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
+                df_filtered['Prob_Tidak_Lulus'] = 100.0 - df_filtered['Prob_Lulus']
 
-        fig, ax = plt.subplots()
-        ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-        ax.axis('equal')
-        st.pyplot(fig)
+                st.markdown("#### 🔮 Prediksi Mahasiswa")
+                st.dataframe(df_filtered[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
 
-        st.markdown("#### 📈 Statistik IPK")
-        st.write(f"- Rata-rata IPK: **{df_filtered['IPK'].mean():.2f}**")
-        st.write(f"- Tertinggi: **{df_filtered['IPK'].max():.2f}**")
-        st.write(f"- Terendah: **{df_filtered['IPK'].min():.2f}**")
+                st.markdown("#### 📊 Rata-rata Probabilitas")
+                avg_lulus = df_filtered['Prob_Lulus'].mean()
+                avg_tidak = df_filtered['Prob_Tidak_Lulus'].mean()
 
-        fig, ax = plt.subplots()
-        ax.hist(df_filtered["IPK"], bins=10, color="#4CAF50", edgecolor="black")
-        ax.set_title("Distribusi IPK Mahasiswa")
-        ax.set_xlabel("IPK")
-        ax.set_ylabel("Jumlah")
-        st.pyplot(fig)
+                fig, ax = plt.subplots()
+                ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                ax.axis('equal')
+                st.pyplot(fig)
+
+                st.markdown("#### 📈 Statistik IPK")
+                st.write(f"- Rata-rata IPK: **{df_filtered['IPK'].mean():.2f}**")
+                st.write(f"- Tertinggi: **{df_filtered['IPK'].max():.2f}**")
+                st.write(f"- Terendah: **{df_filtered['IPK'].min():.2f}**")
+
+                fig, ax = plt.subplots()
+                ax.hist(df_filtered["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+                ax.set_title("Distribusi IPK Mahasiswa")
+                ax.set_xlabel("IPK")
+                ax.set_ylabel("Jumlah")
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ Tidak ada data mahasiswa untuk jurusan ini.")
+
+        except Exception as e:
+            st.error(f"❌ Gagal membaca file: {e}")
     else:
-        st.warning("⚠️ Tidak ada data mahasiswa untuk jurusan ini.")
+        st.info("⬆️ Silakan upload file Excel terlebih dahulu untuk melihat data.")
+
