@@ -30,7 +30,8 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["user_role"] = None
     st.session_state["user_name"] = None
-
+# Tambahan data login admin (bisa dikembangkan ke database nanti)
+admin_users = ["admin1", "admin2"]
 # ======================= FUNGSI LOGIN =======================
 def login(nama, role):
     if role == "Mahasiswa" and df_mahasiswa is not None and nama in df_mahasiswa["Nama Mahasiswa"].values:
@@ -39,7 +40,9 @@ def login(nama, role):
     elif role == "Dosen" and nama in ["Dr. Ahmad", "Prof. Budi", "Dr. Siti", "Dr. Rina", "Ir.Bambang"]:
         st.session_state.update({"logged_in": True, "user_role": "Dosen", "user_name": nama})
         return True
-    
+     elif role == "Admin" and nama in admin_users:
+        st.session_state.update({"logged_in": True, "user_role": "Admin", "user_name": nama})
+        return True
 
     return False
 
@@ -168,50 +171,64 @@ elif st.session_state["user_role"] == "Dosen":
     else:
         st.info("⬆️ Silakan upload file Excel terlebih dahulu untuk melihat data.")
 
-# ======================= HALAMAN ADMIN =======================
+# ======================= HALAMAN ADMIN (Baru Ditambahkan) =======================
 elif st.session_state["user_role"] == "Admin":
-    st.sidebar.markdown("### 🔑 Akun Admin")
+    st.sidebar.markdown("### 🛠️ Akun Admin")
     st.sidebar.write(f"👤 {st.session_state['user_name']}")
     if st.sidebar.button("🚪 Logout"):
         logout()
         st.rerun()
 
-    st.subheader(f"🛠️ Selamat datang, {st.session_state['user_name']}")
+    st.subheader(f"📊 Selamat datang Admin, {st.session_state['user_name']}")
     st.markdown("Silakan upload file data mahasiswa (.xlsx):")
 
     uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"])
 
     if uploaded_file is not None:
         try:
-            df_uploaded = pd.read_excel(uploaded_file, engine='openpyxl')
+            df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
 
-            st.markdown("### 📊 Data Mahasiswa")
-            st.dataframe(df_uploaded)
+            if not df_mahasiswa.empty:
+                st.markdown("### 🎓 Seluruh Data Mahasiswa")
+                st.dataframe(df_mahasiswa)
 
-            df_uploaded['Prediksi'] = df_uploaded['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-            df_uploaded['Prob_Lulus'] = df_uploaded.apply(
-                lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
-                            85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
-            df_uploaded['Prob_Tidak_Lulus'] = 100.0 - df_uploaded['Prob_Lulus']
+                df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+                df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
+                    lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
+                                85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
+                df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
 
-            st.markdown("#### 🔮 Prediksi Mahasiswa")
-            st.dataframe(df_uploaded[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+                st.markdown("#### 🔮 Prediksi Keseluruhan")
+                st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
 
-            st.markdown("#### 📈 Statistik IPK")
-            st.write(f"- Rata-rata IPK: **{df_uploaded['IPK'].mean():.2f}**")
-            st.write(f"- Tertinggi: **{df_uploaded['IPK'].max():.2f}**")
-            st.write(f"- Terendah: **{df_uploaded['IPK'].min():.2f}**")
+                st.markdown("#### 📊 Rata-rata Probabilitas")
+                avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
+                avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
 
-            fig, ax = plt.subplots()
-            ax.hist(df_uploaded["IPK"], bins=10, color="#4CAF50", edgecolor="black")
-            ax.set_title("Distribusi IPK Mahasiswa")
-            ax.set_xlabel("IPK")
-            ax.set_ylabel("Jumlah")
-            st.pyplot(fig)
+                fig, ax = plt.subplots()
+                ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                ax.axis('equal')
+                st.pyplot(fig)
+
+                st.markdown("#### 📈 Statistik IPK")
+                st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
+                st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
+                st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
+
+                fig, ax = plt.subplots()
+                ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+                ax.set_title("Distribusi IPK Mahasiswa")
+                ax.set_xlabel("IPK")
+                ax.set_ylabel("Jumlah")
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ File kosong atau tidak valid.")
 
         except Exception as e:
             st.error(f"❌ Gagal membaca file: {e}")
     else:
-        st.info("⬆️ Silakan upload file Excel terlebih dahulu.")
+        st.info("⬆️ Silakan upload file Excel terlebih dahulu untuk melihat data.")
+
+
 
 
