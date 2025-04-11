@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # ======================= PAGE CONFIGURATION =======================
-st.set_page_config(page_title="Aplikasi Prediksi Kelulusan", layout="centered", page_icon="🎓")
+st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="centered", page_icon="🎓")
 
 # ======================= LOAD DATA MAHASISWA & DOSEN =======================
 def load_mahasiswa_data():
