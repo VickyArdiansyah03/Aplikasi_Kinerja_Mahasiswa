@@ -8,7 +8,7 @@ st.set_page_config(page_title="Aplikasi Prediksi Kelulusan", layout="centered", 
 # ======================= LOAD DATA MAHASISWA & DOSEN =======================
 def load_mahasiswa_data():
     try:
-        df = pd.read_excel(r"D:/project machine23/data/Data_Mahasiswa.xlsx")
+        df = pd.read_excel(r"data/Data_Mahasiswa.xlsx")
         return df
     except Exception as e:
         st.error(f"Gagal memuat data mahasiswa: {e}")
@@ -16,7 +16,7 @@ def load_mahasiswa_data():
 
 def load_dosen_data():
     try:
-        df = pd.read_excel(r"D:/project machine23/data/Data_Dosen.xlsx")
+        df = pd.read_excel(r"data/Data_Dosen.xlsx")
         return df
     except Exception as e:
         st.error(f"Gagal memuat data dosen: {e}")
