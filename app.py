@@ -30,9 +30,9 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["user_role"] = None
     st.session_state["user_name"] = None
-# Tambahan data login admin (bisa dikembangkan ke database nanti)
+# Tambahan daftar admin
 admin_users = ["admin1", "admin2"]
-# ======================= FUNGSI LOGIN =======================
+
 def login(nama, role):
     if role == "Mahasiswa" and df_mahasiswa is not None and nama in df_mahasiswa["Nama Mahasiswa"].values:
         st.session_state.update({"logged_in": True, "user_role": "Mahasiswa", "user_name": nama})
@@ -40,10 +40,9 @@ def login(nama, role):
     elif role == "Dosen" and nama in ["Dr. Ahmad", "Prof. Budi", "Dr. Siti", "Dr. Rina", "Ir.Bambang"]:
         st.session_state.update({"logged_in": True, "user_role": "Dosen", "user_name": nama})
         return True
-     elif role == "Admin" and nama in admin_users:
+    elif role == "Admin" and nama in admin_users:
         st.session_state.update({"logged_in": True, "user_role": "Admin", "user_name": nama})
         return True
-
     return False
 
 # ======================= FUNGSI LOGOUT =======================
