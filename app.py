@@ -166,3 +166,50 @@ elif st.session_state["user_role"] == "Dosen":
     else:
         st.info("⬆️ Silakan upload file Excel terlebih dahulu untuk melihat data.")
 
+# ======================= HALAMAN ADMIN =======================
+elif st.session_state["user_role"] == "Admin":
+    st.sidebar.markdown("### 🔑 Akun Admin")
+    st.sidebar.write(f"👤 {st.session_state['user_name']}")
+    if st.sidebar.button("🚪 Logout"):
+        logout()
+        st.rerun()
+
+    st.subheader(f"🛠️ Selamat datang, {st.session_state['user_name']}")
+    st.markdown("Silakan upload file data mahasiswa (.xlsx):")
+
+    uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"])
+
+    if uploaded_file is not None:
+        try:
+            df_uploaded = pd.read_excel(uploaded_file, engine='openpyxl')
+
+            st.markdown("### 📊 Data Mahasiswa")
+            st.dataframe(df_uploaded)
+
+            df_uploaded['Prediksi'] = df_uploaded['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+            df_uploaded['Prob_Lulus'] = df_uploaded.apply(
+                lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
+                            85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
+            df_uploaded['Prob_Tidak_Lulus'] = 100.0 - df_uploaded['Prob_Lulus']
+
+            st.markdown("#### 🔮 Prediksi Mahasiswa")
+            st.dataframe(df_uploaded[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+
+            st.markdown("#### 📈 Statistik IPK")
+            st.write(f"- Rata-rata IPK: **{df_uploaded['IPK'].mean():.2f}**")
+            st.write(f"- Tertinggi: **{df_uploaded['IPK'].max():.2f}**")
+            st.write(f"- Terendah: **{df_uploaded['IPK'].min():.2f}**")
+
+            fig, ax = plt.subplots()
+            ax.hist(df_uploaded["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+            ax.set_title("Distribusi IPK Mahasiswa")
+            ax.set_xlabel("IPK")
+            ax.set_ylabel("Jumlah")
+            st.pyplot(fig)
+
+        except Exception as e:
+            st.error(f"❌ Gagal membaca file: {e}")
+    else:
+        st.info("⬆️ Silakan upload file Excel terlebih dahulu.")
+
+
