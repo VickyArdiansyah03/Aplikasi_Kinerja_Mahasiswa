@@ -39,6 +39,8 @@ def login(nama, role):
     elif role == "Dosen" and nama in ["Dr. Ahmad", "Prof. Budi", "Dr. Siti", "Dr. Rina", "Ir.Bambang"]:
         st.session_state.update({"logged_in": True, "user_role": "Dosen", "user_name": nama})
         return True
+    
+
     return False
 
 # ======================= FUNGSI LOGOUT =======================
@@ -50,7 +52,7 @@ if not st.session_state["logged_in"]:
     with st.container():
         st.title("🔐 Login Prediksi Kinerja Mahasiswa")
         nama_user = st.text_input("🧑 Nama Lengkap")
-        role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen"])
+        role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin"])
 
         if st.button("🚀 Login"):
             if login(nama_user, role):
