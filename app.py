@@ -98,7 +98,7 @@ if not st.session_state["logged_in"]:
     """, unsafe_allow_html=True)
 
     with st.form("login_form"):
-        nama_user = st.text_input("🧑 Nama Lengkap", placeholder="Contoh: Vicky")
+        nama_user = st.text_input("🧑 Nama Lengkap Mahasiswa", placeholder="Contoh: Vicky")
         role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin"])
         submitted = st.form_submit_button("🚀 Login")
 
