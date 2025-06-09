@@ -1,3 +1,109 @@
+import os
+from openpyxl import load_workbook
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import random
+
+# ======================= PAGE CONFIGURATION =======================
+st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="centered", page_icon="🎓")
+
+# ======================= LOAD DATA MAHASISWA & DOSEN =======================
+def load_mahasiswa_data():
+    try:
+        df = pd.read_excel(r"data/Data_Mahasiswa.xlsx")
+        return df
+    except Exception as e:
+        st.error(f"Gagal memuat data mahasiswa: {e}")
+        return None
+
+def load_dosen_data():
+    try:
+        df = pd.read_excel(r"data/Data_Dosen.xlsx")
+        return df
+    except Exception as e:
+        st.error(f"Gagal memuat data dosen: {e}")
+        return None
+
+df_mahasiswa = load_mahasiswa_data()
+df_dosen = load_dosen_data()
+
+# ======================= SESSION STATE =======================
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["user_role"] = None
+    st.session_state["user_name"] = None
+# Tambahan daftar admin
+admin_users = ["admin1", "admin2"]
+
+def login(nama, role):
+    if role == "Mahasiswa" and df_mahasiswa is not None and nama in df_mahasiswa["Nama Mahasiswa"].values:
+        st.session_state.update({"logged_in": True, "user_role": "Mahasiswa", "user_name": nama})
+        return True
+    elif role == "Dosen" and nama in ["Dr. Ahmad", "Prof. Budi", "Dr. Siti", "Dr. Rina", "Ir.Bambang"]:
+        st.session_state.update({"logged_in": True, "user_role": "Dosen", "user_name": nama})
+        return True
+    elif role == "Admin" and nama in admin_users:
+        st.session_state.update({"logged_in": True, "user_role": "Admin", "user_name": nama})
+        return True
+    return False
+
+# ======================= FUNGSI LOGOUT =======================
+def logout():
+    st.session_state.update({"logged_in": False, "user_role": None, "user_name": None})
+
+# ======================= HALAMAN LOGIN =======================
+if not st.session_state["logged_in"]:
+    with st.container():
+        st.title("🔐 Login Prediksi Kinerja Mahasiswa")
+        nama_user = st.text_input("🧑 Nama Lengkap")
+        role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin"])
+
+        if st.button("🚀 Login"):
+            if login(nama_user, role):
+                st.success(f"✅ Selamat datang, {nama_user}!")
+                st.rerun()
+            else:
+                st.error("❌ Nama tidak ditemukan!")
+
+# ======================= HALAMAN MAHASISWA =======================
+elif st.session_state["user_role"] == "Mahasiswa":
+    st.sidebar.markdown("### 🔑 Akun Mahasiswa")
+    st.sidebar.write(f"👤 {st.session_state['user_name']}")
+    if st.sidebar.button("🚪 Logout"):
+        logout()
+        st.rerun()
+
+    st.subheader(f"🎓 Halo, {st.session_state['user_name']}")
+
+    mahasiswa_data = df_mahasiswa[df_mahasiswa["Nama Mahasiswa"] == st.session_state["user_name"]]
+
+    if not mahasiswa_data.empty:
+        st.markdown("#### 📄 Data Anda")
+        st.dataframe(mahasiswa_data)
+
+        ipk = mahasiswa_data["IPK"].iloc[0]
+        jurusan = mahasiswa_data["Jurusan"].iloc[0]
+
+        if ipk >= 2.50:
+            prediksi = "Lulus"
+            prob_lulus = 90.0 if jurusan == "Teknik Informatika" else 85.0
+        else:
+            prediksi = "Tidak Lulus"
+            prob_lulus = 20.0 if jurusan == "Teknik Informatika" else 15.0
+        prob_tidak_lulus = 100.0 - prob_lulus
+
+        st.markdown(f"### 🎯 Prediksi: {prediksi}")
+        st.metric("✅ Probabilitas Lulus", f"{prob_lulus}%")
+        st.metric("❌ Probabilitas Tidak Lulus", f"{prob_tidak_lulus}%")
+
+        fig, ax = plt.subplots()
+        ax.pie([prob_lulus, prob_tidak_lulus], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+        ax.axis('equal')
+        st.pyplot(fig)
+    else:
+        st.warning("⚠ Data tidak ditemukan.")
+
 # ======================= HALAMAN DOSEN =======================
 elif st.session_state["user_role"] == "Dosen":
     st.sidebar.markdown("### 🔑 Akun Dosen")
@@ -156,3 +262,111 @@ elif st.session_state["user_role"] == "Admin":
                 st.error(f"❌ Gagal membaca file: {e}")
         else:
             st.info("⬆ Silakan upload file Excel (.xlsx) atau CSV (.csv) terlebih dahulu untuk melihat data.")
+
+    elif menu_option == "➕ Tambah Data":
+        st.markdown("## ➕ Tambah Data Mahasiswa Baru")
+        
+        with st.form("form_input", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nama = st.text_input("Nama Mahasiswa", key="nama")
+                jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Teknik Elektro", "Manajemen"], key="jurusan")
+                ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01, key="ipk")
+                sks = st.number_input("SKS", min_value=1.0, max_value=200.0, step=10.0, key="sks")
+                
+            with col2:
+                nilai_matkul = st.number_input("Nilai Mata Kuliah", min_value=0.01, max_value=100.00, step=0.10, key="nilai")
+                kehadiran = st.number_input("Jumlah Kehadiran", min_value=1.0, max_value=20.0, step=1.0, key="kehadiran")
+                tugas = st.number_input("Jumlah Tugas", min_value=1.0, max_value=20.0, step=1.0, key="tugas")
+                penilaian_dosen = st.number_input("Skor Penilaian Dosen", min_value=1.0, max_value=5.00, step=0.1, key="penilaian")
+                
+            waktu_penyelesaian = st.number_input("Waktu Penyelesaian", min_value=1.0, max_value=5.0, step=1.0, key="waktu")
+            
+            submitted = st.form_submit_button("Simpan Data")
+
+            if submitted:
+                if nama and jurusan and ipk:
+                    # Generate NIM acak (8 digit)
+                    nim = f"{random.randint(10000000, 99999999)}"
+                    
+                    new_data = pd.DataFrame([{
+                        "NIM": nim,
+                        "Nama Mahasiswa": nama,
+                        "Jurusan": jurusan,
+                        "IPK": ipk,
+                        "Jumlah SKS": sks,
+                        "Nilai Mata Kuliah": nilai_matkul,
+                        "Jumlah Kehadiran": kehadiran,
+                        "Jumlah Tugas": tugas,
+                        "Skor Penilaian Dosen": penilaian_dosen,
+                        "Waktu Penyelesaian": waktu_penyelesaian, 
+                    }])
+                
+                    # Path file Excel
+                    excel_path = "data/Data_Mahasiswa.xlsx"
+                    
+                    # Pastikan folder 'data/' ada
+                    os.makedirs("data", exist_ok=True)
+                    
+                    # Cek apakah file sudah ada
+                    if os.path.exists(excel_path):
+                        # Jika file ada, baca data lama dan gabungkan dengan data baru
+                        existing_data = pd.read_excel(excel_path, engine="openpyxl")
+                        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+                    else:
+                        # Jika file tidak ada, gunakan data baru
+                        updated_data = new_data
+
+                    # Simpan ke file Excel
+                    try:
+                        updated_data.to_excel(excel_path, index=False, engine="openpyxl")
+                        st.success(f"✅ Data mahasiswa '{nama}' berhasil disimpan di {excel_path}!")
+                        
+                        # Tampilkan data terbaru (opsional)
+                        st.dataframe(updated_data)
+                    except Exception as e:
+                        st.error(f"❌ Gagal menyimpan data: {e}")
+                else:
+                    st.warning("⚠ Harap lengkapi Nama, Jurusan, dan IPK!")
+
+    elif menu_option == "📊 Statistik":
+        st.markdown("## 📊 Statistik Data Mahasiswa")
+        
+        try:
+            df_mahasiswa = pd.read_excel("data/Data_Mahasiswa.xlsx", engine='openpyxl')
+            
+            if not df_mahasiswa.empty:
+                # Statistik umum
+                st.markdown("### 📈 Statistik Umum")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Mahasiswa", len(df_mahasiswa))
+                with col2:
+                    st.metric("Rata-rata IPK", f"{df_mahasiswa['IPK'].mean():.2f}")
+                with col3:
+                    st.metric("IPK Tertinggi", f"{df_mahasiswa['IPK'].max():.2f}")
+                
+                # Distribusi Jurusan
+                st.markdown("### 🏫 Distribusi Jurusan")
+                jurusan_counts = df_mahasiswa['Jurusan'].value_counts()
+                fig1, ax1 = plt.subplots()
+                ax1.pie(jurusan_counts, labels=jurusan_counts.index, autopct='%1.1f%%', startangle=90)
+                ax1.axis('equal')
+                st.pyplot(fig1)
+                
+                # Distribusi IPK
+                st.markdown("### 📊 Distribusi IPK")
+                fig2, ax2 = plt.subplots()
+                ax2.hist(df_mahasiswa['IPK'], bins=10, color='skyblue', edgecolor='black')
+                ax2.set_xlabel('IPK')
+                ax2.set_ylabel('Jumlah Mahasiswa')
+                st.pyplot(fig2)
+                
+            else:
+                st.warning("Database mahasiswa kosong. Silakan tambah data terlebih dahulu.")
+                
+        except FileNotFoundError:
+            st.error("File database mahasiswa tidak ditemukan.")
+        except Exception as e:
+            st.error(f"Terjadi kesalahan: {e}")
