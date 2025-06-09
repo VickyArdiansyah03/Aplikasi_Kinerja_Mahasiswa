@@ -174,11 +174,23 @@ elif st.session_state["user_role"] == "Dosen":
         st.info("⬆ Silakan upload file Excel terlebih dahulu untuk melihat data.")
 
 # ======================= HALAMAN ADMIN (Baru Ditambahkan) =======================
+# ======================= HALAMAN ADMIN =======================
 elif st.session_state["user_role"] == "Admin":
     # Generate NIM acak misalnya 8 digit
     nim = f"{random.randint(10000000, 99999999)}"
+    
+    # Sidebar configuration
     st.sidebar.markdown("### 🛠 Akun Admin")
     st.sidebar.write(f"👤 {st.session_state['user_name']}")
+    
+    # Navigation options in sidebar
+    st.sidebar.markdown("### 📊 Menu Admin")
+    menu_option = st.sidebar.radio(
+        "Pilih opsi:",
+        ["📤 Upload Data", "➕ Tambah Data", "📊 Statistik"],
+        index=0
+    )
+    
     if st.sidebar.button("🚪 Logout"):
         logout()
         st.rerun()
