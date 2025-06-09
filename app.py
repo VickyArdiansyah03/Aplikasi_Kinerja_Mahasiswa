@@ -175,7 +175,41 @@ else:
             st.pyplot(fig)
         else:
             st.warning("⚠️ Data tidak ditemukan.")
+if role == "Admin":
+    st.markdown("---")
+    st.subheader("📝 Input Data Mahasiswa Manual")
 
+    with st.form("form_input_mahasiswa"):
+        nim = st.text_input("NIM")
+        nama = st.text_input("Nama Mahasiswa")
+        jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
+        ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
+        sks = st.number_input("Jumlah SKS", min_value=0)
+        nilai_mk = st.text_input("Nilai Mata Kuliah")
+        kehadiran = st.number_input("Jumlah Kehadiran", min_value=0)
+        tugas = st.number_input("Jumlah Tugas", min_value=0)
+        skor_eval = st.number_input("Skor Evaluasi Dosen oleh Mahasiswa", min_value=0.0, max_value=100.0, step=0.1)
+        masa_studi = st.text_input("Waktu Masa Studi")
+
+        submitted_input = st.form_submit_button("➕ Tambahkan Data")
+        if submitted_input:
+            new_data = pd.DataFrame([{
+                "NIM": nim,
+                "Nama Mahasiswa": nama,
+                "Jurusan": jurusan,
+                "IPK": ipk,
+                "Jumlah SKS": sks,
+                "Nilai Mata Kuliah": nilai_mk,
+                "Jumlah Kehadiran": kehadiran,
+                "Jumlah Tugas": tugas,
+                "Skor Evalasi Dosen Oleh Mahasiswa": skor_eval,
+                "Waktu Masa Studi": masa_studi
+            }])
+            try:
+                df_mahasiswa = pd.concat([df_mahasiswa, new_data], ignore_index=True)
+                st.success(f"✅ Data mahasiswa '{nama}' berhasil ditambahkan.")
+            except Exception as e:
+                st.error(f"❌ Gagal menambahkan data: {e}")
     elif role == "Dosen" or role == "Admin":
         uploaded_file = st.file_uploader("📤 Upload file data mahasiswa (.xlsx)", type=["xlsx"])
         if uploaded_file is not None:
