@@ -24,7 +24,12 @@ def load_mahasiswa_data():
         return pd.read_excel("data/Data_Mahasiswa.xlsx")
     except Exception as e:
         st.error(f"Gagal memuat data mahasiswa: {e}")
-        return None
+        return pd.DataFrame(columns=[
+            "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
+            "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
+            "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa",
+            "Waktu Masa Studi"
+        ])
 
 def load_dosen_data():
     try:
@@ -45,7 +50,7 @@ if "logged_in" not in st.session_state:
 admin_users = ["admin1", "admin2"]
 
 def login(nama, role):
-    if role == "Mahasiswa" and df_mahasiswa is not None and nama in df_mahasiswa["Nama Mahasiswa"].values:
+    if role == "Mahasiswa" and not df_mahasiswa.empty and nama in df_mahasiswa["Nama Mahasiswa"].values:
         st.session_state.update({"logged_in": True, "user_role": "Mahasiswa", "user_name": nama})
         return True
     elif role == "Dosen" and nama in ["Dr. Ahmad", "Prof. Budi", "Dr. Siti", "Dr. Rina", "Ir.Bambang"]:
@@ -120,23 +125,52 @@ else:
 
         with st.expander("➕ Tambah Mahasiswa Secara Manual"):
             with st.form("form_tambah_mahasiswa"):
+                nim_baru = st.text_input("NIM")
                 nama_baru = st.text_input("Nama Mahasiswa")
                 jurusan_baru = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
                 ipk_baru = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
+                sks_baru = st.number_input("Jumlah SKS", min_value=0)
+                nilai_mk_baru = st.number_input("Nilai Mata Kuliah (rata-rata)", min_value=0.0, max_value=100.0)
+                hadir_baru = st.number_input("Jumlah Kehadiran", min_value=0)
+                tugas_baru = st.number_input("Jumlah Tugas", min_value=0)
+                skor_eval_baru = st.number_input("Skor Evaluasi Dosen oleh Mahasiswa", min_value=0.0, max_value=5.0, step=0.1)
+                masa_studi_baru = st.number_input("Waktu Masa Studi (dalam semester)", min_value=0)
+
                 submit_tambah = st.form_submit_button("Tambah Data")
 
                 if submit_tambah:
-                    new_data = pd.DataFrame([[nama_baru, jurusan_baru, ipk_baru]], columns=["Nama Mahasiswa", "Jurusan", "IPK"])
+                    new_data = pd.DataFrame([[
+                        nim_baru, nama_baru, jurusan_baru, ipk_baru,
+                        sks_baru, nilai_mk_baru, hadir_baru, tugas_baru,
+                        skor_eval_baru, masa_studi_baru
+                    ]], columns=[
+                        "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
+                        "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
+                        "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa",
+                        "Waktu Masa Studi"
+                    ])
                     df_mahasiswa = pd.concat([df_mahasiswa, new_data], ignore_index=True)
                     st.success("✅ Data mahasiswa berhasil ditambahkan.")
 
         uploaded_file = st.file_uploader("📤 Atau upload file Excel (.xlsx)", type=["xlsx"])
         if uploaded_file is not None:
             try:
-                df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
+                df_upload = pd.read_excel(uploaded_file, engine='openpyxl')
+
+                expected_cols = [
+                    "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
+                    "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
+                    "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa", "Waktu Masa Studi"
+                ]
+                if all(col in df_upload.columns for col in expected_cols):
+                    df_mahasiswa = df_upload
+                    st.success("✅ Data mahasiswa berhasil diunggah.")
+                else:
+                    st.error("❌ Format kolom tidak sesuai. Pastikan semua kolom berikut ada:\n" + ", ".join(expected_cols))
             except Exception as e:
                 st.error(f"❌ Gagal membaca file: {e}")
 
+        # Jika role dosen, filter jurusan sesuai dosen
         if role == "Dosen":
             jurusan_mapping = {
                 "Dr. Ahmad": "Teknik Informatika",
@@ -150,6 +184,7 @@ else:
                 df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
 
         if not df_mahasiswa.empty:
+            # Prediksi sederhana berdasarkan IPK
             df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
             df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
                 lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
@@ -161,7 +196,7 @@ else:
             st.dataframe(df_mahasiswa)
 
             st.markdown("#### 🔮 Prediksi Mahasiswa")
-            st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+            st.dataframe(df_mahasiswa[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
 
             st.markdown("#### 📊 Rata-rata Probabilitas")
             avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
