@@ -128,6 +128,7 @@ if not st.session_state["logged_in"]:
     """, unsafe_allow_html=True)
 
 # ======================= MAIN PAGE =======================
+# ======================= MAIN PAGE =======================
 else:
     st.sidebar.markdown(f"### 👋 Selamat datang, {st.session_state['user_name']} ({st.session_state['user_role']})")
     if st.sidebar.button("🚪 Logout"):
@@ -176,12 +177,14 @@ else:
         else:
             st.warning("⚠️ Data tidak ditemukan.")
 
-       elif role == "Admin" or role == "Dosen":
+    if role == "Admin" or role == "Dosen":
         opsi_admin = None
         if role == "Admin":
             opsi_admin = st.sidebar.radio("📌 Menu Admin", ["Upload", "Input"])
+        else:
+            opsi_admin = "Upload"
 
-        if role == "Dosen" or opsi_admin == "Upload":
+        if opsi_admin == "Upload":
             uploaded_file = st.file_uploader("📤 Upload file data mahasiswa (.xlsx)", type=["xlsx"])
             if uploaded_file is not None:
                 try:
