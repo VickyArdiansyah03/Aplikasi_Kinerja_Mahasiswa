@@ -359,9 +359,6 @@ elif st.session_state["user_role"] == "Admin":
             plt.xticks(rotation=45)
             st.pyplot(fig2)
             
-        else:
-            st.warning("⚠ Tidak ada data mahasiswa yang tersedia. Silakan upload data terlebih dahulu.")
-                
             else:
                 st.warning("Database mahasiswa kosong. Silakan tambah data terlebih dahulu.")
                 
