@@ -117,7 +117,7 @@ if not st.session_state["logged_in"]:
 
         if submitted:
             if login(nama_user, role):
-                st.success(f"✅ Selamat datang, {nama_user}!")
+                st.success(f"✅ Selamat datang DI, {nama_user}!")
                 st.experimental_rerun()
             else:
                 st.error("❌ Nama tidak ditemukan. Silakan periksa kembali.")
