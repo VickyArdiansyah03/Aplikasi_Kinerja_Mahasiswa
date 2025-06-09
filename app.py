@@ -238,6 +238,8 @@ else:
                     st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
                     st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
                     st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
+                    st.sidebar.write(f"DEBUG: Role = {role}")
+st.sidebar.write(f"DEBUG: opsi_menu = {opsi_menu}")
 
                     fig, ax = plt.subplots()
                     ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
