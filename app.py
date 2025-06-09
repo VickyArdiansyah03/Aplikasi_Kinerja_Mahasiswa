@@ -135,6 +135,14 @@ else:
         logout()
         st.experimental_rerun()
 
+    role = st.session_state["user_role"]
+
+    # Sidebar menu pilihan Input / Upload untuk Admin dan Dosen
+    if role in ["Admin", "Dosen"]:
+        opsi_menu = st.sidebar.radio("📌 Menu", ["Upload", "Input"])
+    else:
+        opsi_menu = None
+
     st.title("🏠 Beranda Aplikasi Prediksi Kinerja Mahasiswa")
     st.markdown("""
     Selamat datang di aplikasi prediksi kinerja mahasiswa. 
@@ -145,8 +153,6 @@ else:
     - 📈 Menampilkan visualisasi distribusi IPK
     - 🛠️ Upload dan analisis data mahasiswa (.xlsx)
     """)
-
-    role = st.session_state["user_role"]
 
     if role == "Mahasiswa":
         mahasiswa_data = df_mahasiswa[df_mahasiswa["Nama Mahasiswa"] == st.session_state["user_name"]]
@@ -177,18 +183,13 @@ else:
         else:
             st.warning("⚠️ Data tidak ditemukan.")
 
-    if role == "Admin" or role == "Dosen":
-        opsi_admin = None
-        if role == "Admin":
-            opsi_admin = st.sidebar.radio("📌 Menu Admin", ["Upload", "Input"])
-        else:
-            opsi_admin = "Upload"
-
-        if opsi_admin == "Upload":
+    # Untuk Admin dan Dosen, tampilkan menu Upload/Input sesuai pilihan sidebar
+    if role in ["Admin", "Dosen"]:
+        if opsi_menu == "Upload":
             uploaded_file = st.file_uploader("📤 Upload file data mahasiswa (.xlsx)", type=["xlsx"])
             if uploaded_file is not None:
                 try:
-                    df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
+                    df_mahasiswa_upload = pd.read_excel(uploaded_file, engine='openpyxl')
 
                     if role == "Dosen":
                         jurusan_mapping = {
@@ -200,27 +201,27 @@ else:
                         }
                         jurusan = jurusan_mapping.get(st.session_state["user_name"])
                         if jurusan:
-                            df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
+                            df_mahasiswa_upload = df_mahasiswa_upload[df_mahasiswa_upload["Jurusan"] == jurusan]
 
-                    if df_mahasiswa.empty:
+                    if df_mahasiswa_upload.empty:
                         st.warning("⚠️ Tidak ada data mahasiswa untuk ditampilkan.")
                     else:
                         st.markdown("### 📋 Data Mahasiswa")
-                        st.dataframe(df_mahasiswa)
+                        st.dataframe(df_mahasiswa_upload)
 
-                        df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-                        df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
+                        df_mahasiswa_upload['Prediksi'] = df_mahasiswa_upload['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+                        df_mahasiswa_upload['Prob_Lulus'] = df_mahasiswa_upload.apply(
                             lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
                                         85.0 if row['IPK'] >= 2.50 else
                                         20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0, axis=1)
-                        df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
+                        df_mahasiswa_upload['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa_upload['Prob_Lulus']
 
                         st.markdown("#### 🔮 Prediksi Mahasiswa")
-                        st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+                        st.dataframe(df_mahasiswa_upload[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
 
                         st.markdown("#### 📊 Rata-rata Probabilitas")
-                        avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
-                        avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
+                        avg_lulus = df_mahasiswa_upload['Prob_Lulus'].mean()
+                        avg_tidak = df_mahasiswa_upload['Prob_Tidak_Lulus'].mean()
 
                         fig, ax = plt.subplots()
                         ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
@@ -228,12 +229,12 @@ else:
                         st.pyplot(fig)
 
                         st.markdown("#### 📈 Statistik IPK")
-                        st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
-                        st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
-                        st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
+                        st.write(f"- Rata-rata IPK: **{df_mahasiswa_upload['IPK'].mean():.2f}**")
+                        st.write(f"- Tertinggi: **{df_mahasiswa_upload['IPK'].max():.2f}**")
+                        st.write(f"- Terendah: **{df_mahasiswa_upload['IPK'].min():.2f}")
 
                         fig, ax = plt.subplots()
-                        ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+                        ax.hist(df_mahasiswa_upload["IPK"], bins=10, color="#4CAF50", edgecolor="black")
                         ax.set_title("Distribusi IPK Mahasiswa")
                         ax.set_xlabel("IPK")
                         ax.set_ylabel("Jumlah Mahasiswa")
@@ -243,50 +244,53 @@ else:
             else:
                 st.info("⬆️ Silakan upload file Excel terlebih dahulu.")
 
-        elif opsi_admin == "Input":
-            st.markdown("### 📝 Form Input Prediksi Kinerja Mahasiswa")
+        elif opsi_menu == "Input":
+            if role == "Admin":
+                st.markdown("### 📝 Form Input Prediksi Kinerja Mahasiswa")
 
-            with st.form("form_input_mahasiswa"):
-                nim = st.text_input("NIM")
-                nama = st.text_input("Nama Mahasiswa")
-                jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
-                ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
-                sks = st.number_input("Jumlah SKS", min_value=0)
-                nilai_mk = st.text_input("Nilai Mata Kuliah (rata-rata atau deskripsi singkat)")
-                kehadiran = st.number_input("Jumlah Kehadiran", min_value=0)
-                tugas = st.number_input("Jumlah Tugas", min_value=0)
-                skor_eval = st.slider("Skor Evaluasi Dosen Oleh Mahasiswa", 0, 100, 75)
-                masa_studi = st.text_input("Waktu Masa Studi (misal: 3.5 tahun)")
+                with st.form("form_input_mahasiswa"):
+                    nim = st.text_input("NIM")
+                    nama = st.text_input("Nama Mahasiswa")
+                    jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
+                    ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
+                    sks = st.number_input("Jumlah SKS", min_value=0)
+                    nilai_mk = st.text_input("Nilai Mata Kuliah (rata-rata atau deskripsi singkat)")
+                    kehadiran = st.number_input("Jumlah Kehadiran", min_value=0)
+                    tugas = st.number_input("Jumlah Tugas", min_value=0)
+                    skor_eval = st.slider("Skor Evaluasi Dosen Oleh Mahasiswa", 0, 100, 75)
+                    masa_studi = st.text_input("Waktu Masa Studi (misal: 3.5 tahun)")
 
-                submit_data = st.form_submit_button("💾 Simpan Data")
+                    submit_data = st.form_submit_button("💾 Simpan Data")
 
-                if submit_data:
-                    prediksi = "Lulus" if ipk >= 2.5 else "Tidak Lulus"
-                    prob_lulus = 90.0 if jurusan == "Teknik Informatika" and ipk >= 2.5 else \
-                                 85.0 if ipk >= 2.5 else \
-                                 20.0 if jurusan == "Teknik Informatika" else 15.0
-                    prob_tidak_lulus = 100.0 - prob_lulus
+                    if submit_data:
+                        prediksi = "Lulus" if ipk >= 2.5 else "Tidak Lulus"
+                        prob_lulus = 90.0 if jurusan == "Teknik Informatika" and ipk >= 2.5 else \
+                                     85.0 if ipk >= 2.5 else \
+                                     20.0 if jurusan == "Teknik Informatika" else 15.0
+                        prob_tidak_lulus = 100.0 - prob_lulus
 
-                    st.success("✅ Data berhasil disimpan (simulasi)")
+                        st.success("✅ Data berhasil disimpan (simulasi)")
 
-                    st.markdown("#### 📋 Hasil Input")
-                    st.write({
-                        "NIM": nim,
-                        "Nama": nama,
-                        "Jurusan": jurusan,
-                        "IPK": ipk,
-                        "Prediksi": prediksi,
-                        "Prob Lulus": prob_lulus,
-                        "Prob Tidak Lulus": prob_tidak_lulus,
-                        "SKS": sks,
-                        "Nilai MK": nilai_mk,
-                        "Kehadiran": kehadiran,
-                        "Tugas": tugas,
-                        "Evaluasi": skor_eval,
-                        "Masa Studi": masa_studi
-                    })
+                        st.markdown("#### 📋 Hasil Input")
+                        st.write({
+                            "NIM": nim,
+                            "Nama": nama,
+                            "Jurusan": jurusan,
+                            "IPK": ipk,
+                            "Prediksi": prediksi,
+                            "Prob Lulus": prob_lulus,
+                            "Prob Tidak Lulus": prob_tidak_lulus,
+                            "SKS": sks,
+                            "Nilai MK": nilai_mk,
+                            "Kehadiran": kehadiran,
+                            "Tugas": tugas,
+                            "Evaluasi": skor_eval,
+                            "Masa Studi": masa_studi
+                        })
 
-                    fig, ax = plt.subplots()
-                    ax.pie([prob_lulus, prob_tidak_lulus], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-                    ax.axis('equal')
-                    st.pyplot(fig)
+                        fig, ax = plt.subplots()
+                        ax.pie([prob_lulus, prob_tidak_lulus], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                        ax.axis('equal')
+                        st.pyplot(fig)
+            else:
+                st.warning("⚠️ Fitur input hanya tersedia untuk Admin.")
