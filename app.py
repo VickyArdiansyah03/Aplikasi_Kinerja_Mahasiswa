@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # ======================= PAGE CONFIGURATION =======================
-st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="centered", page_icon="🎓")
+st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasisw", layout="centered", page_icon="🎓")
 
 # ======================= GLOBAL WHITE BACKGROUND =======================
 st.markdown("""
