@@ -138,10 +138,10 @@ else:
     role = st.session_state["user_role"]
 
     # Sidebar menu pilihan Input / Upload untuk Admin dan Dosen
-    if role in ["admin", "dosen"]:
+    if role in ["Admin", "Dosen"]:
         opsi_menu = st.sidebar.radio("📌 Menu", ["Upload", "Input"])
     else:
-        opsi_menu = None
+        opsi_menu = st.sidebar.radio("📌 Menu", ["Upload", "Input"])
 
     st.title("🏠 Beranda Aplikasi Prediksi Kinerja Mahasiswa")
     st.markdown("""
