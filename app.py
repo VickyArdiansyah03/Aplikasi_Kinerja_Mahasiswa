@@ -331,13 +331,36 @@ elif st.session_state["user_role"] == "Admin":
                 ax1.axis('equal')
                 st.pyplot(fig1)
                 
-                # Distribusi IPK
-                st.markdown("### 📊 Distribusi IPK")
-                fig2, ax2 = plt.subplots()
-                ax2.hist(df_mahasiswa['IPK'], bins=10, color='skyblue', edgecolor='black')
-                ax2.set_xlabel('IPK')
-                ax2.set_ylabel('Jumlah Mahasiswa')
-                st.pyplot(fig2)
+                
+            # IPK distribution by jurusan - using matplotlib instead of seaborn
+            st.markdown("#### 📊 Distribusi IPK per Jurusan")
+            fig2, ax2 = plt.subplots(figsize=(10, 6))
+            
+            # Group data by jurusan
+            grouped_data = df_mahasiswa.groupby('Jurusan')['IPK'].apply(list)
+            
+            # Create boxplot manually
+            positions = range(1, len(grouped_data) + 1)
+            boxprops = dict(linestyle='-', linewidth=1.5, color='blue')
+            medianprops = dict(linestyle='-', linewidth=2.5, color='red')
+            
+            bp = ax2.boxplot(grouped_data.values, positions=positions, patch_artist=True,
+                            boxprops=boxprops, medianprops=medianprops)
+            
+            # Color the boxes
+            for box in bp['boxes']:
+                box.set(facecolor='lightblue')
+            
+            ax2.set_xticks(positions)
+            ax2.set_xticklabels(grouped_data.index)
+            ax2.set_xlabel('Jurusan')
+            ax2.set_ylabel('IPK')
+            ax2.set_title('Distribusi IPK per Jurusan')
+            plt.xticks(rotation=45)
+            st.pyplot(fig2)
+            
+        else:
+            st.warning("⚠ Tidak ada data mahasiswa yang tersedia. Silakan upload data terlebih dahulu.")
                 
             else:
                 st.warning("Database mahasiswa kosong. Silakan tambah data terlebih dahulu.")
