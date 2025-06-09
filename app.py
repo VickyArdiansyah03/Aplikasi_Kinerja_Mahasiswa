@@ -113,8 +113,20 @@ elif st.session_state["user_role"] == "Dosen":
         st.rerun()
 
     st.subheader(f"📚 Selamat datang, {st.session_state['user_name']}")
+    
+    # Mapping dosen ke jurusan
+    jurusan_mapping = {
+        "Dr. Ahmad": "Teknik Informatika",
+        "Prof. Budi": "Sistem Informasi",
+        "Dr. Siti": "Akuntansi",
+        "Dr. Rina": "Manajemen",
+        "Ir.Bambang": "Teknik Elektro"
+    }
+    
+    current_jurusan = jurusan_mapping.get(st.session_state["user_name"], "Unknown")
+    st.markdown(f"### 🏫 Jurusan Anda: {current_jurusan}")
+    
     st.markdown("Silakan upload file data mahasiswa (.xlsx atau .csv):")
-
     uploaded_file = st.file_uploader("Upload file", type=["xlsx", "csv"])
 
     if uploaded_file is not None:
@@ -128,25 +140,22 @@ elif st.session_state["user_role"] == "Dosen":
                 st.error("Format file tidak didukung. Harap upload file Excel (.xlsx) atau CSV (.csv)")
                 st.stop()
 
-            jurusan_mapping = {
-                "Dr. Ahmad": "Teknik Informatika",
-                "Prof. Budi": "Sistem Informasi",
-                "Dr. Siti": "Akuntansi",
-                "Dr. Rina": "Manajemen",
-                "Ir.Bambang": "Teknik Elektro"
-            }
-
-            jurusan = jurusan_mapping.get(st.session_state["user_name"])
-            df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan] if jurusan else pd.DataFrame()
+            # Filter data berdasarkan jurusan dosen
+            df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == current_jurusan]
 
             if not df_filtered.empty:
-                st.markdown("### 🎓 Data Mahasiswa")
+                st.markdown(f"### 🎓 Data Mahasiswa Jurusan {current_jurusan}")
                 st.dataframe(df_filtered)
 
+                # Proses prediksi kelulusan
                 df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-                df_filtered['Prob_Lulus'] = df_filtered.apply(
-                    lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
-                                85.0 if row['IPK'] >= 2.50 else 20.0, axis=1)
+                
+                # Adjust probabilities based on department
+                if current_jurusan == "Teknik Informatika":
+                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 90.0 if x >= 2.50 else 20.0)
+                else:
+                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 85.0 if x >= 2.50 else 15.0)
+                    
                 df_filtered['Prob_Tidak_Lulus'] = 100.0 - df_filtered['Prob_Lulus']
 
                 st.markdown("#### 🔮 Prediksi Mahasiswa")
@@ -157,23 +166,36 @@ elif st.session_state["user_role"] == "Dosen":
                 avg_tidak = df_filtered['Prob_Tidak_Lulus'].mean()
 
                 fig, ax = plt.subplots()
-                ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                ax.pie([avg_lulus, avg_tidak], 
+                       labels=["Lulus", "Tidak Lulus"], 
+                       autopct='%1.1f%%', 
+                       colors=["#4CAF50", "#FF0013"])
                 ax.axis('equal')
                 st.pyplot(fig)
 
                 st.markdown("#### 📈 Statistik IPK")
-                st.write(f"- Rata-rata IPK: {df_filtered['IPK'].mean():.2f}")
-                st.write(f"- Tertinggi: {df_filtered['IPK'].max():.2f}")
-                st.write(f"- Terendah: {df_filtered['IPK'].min():.2f}")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Rata-rata IPK", f"{df_filtered['IPK'].mean():.2f}")
+                with col2:
+                    st.metric("IPK Tertinggi", f"{df_filtered['IPK'].max():.2f}")
+                with col3:
+                    st.metric("IPK Terendah", f"{df_filtered['IPK'].min():.2f}")
 
                 fig, ax = plt.subplots()
                 ax.hist(df_filtered["IPK"], bins=10, color="#4CAF50", edgecolor="black")
-                ax.set_title("Distribusi IPK Mahasiswa")
+                ax.set_title(f"Distribusi IPK Mahasiswa {current_jurusan}")
                 ax.set_xlabel("IPK")
-                ax.set_ylabel("Jumlah")
+                ax.set_ylabel("Jumlah Mahasiswa")
                 st.pyplot(fig)
+                
+                # Additional statistics
+                st.markdown("#### 📝 Statistik Tambahan")
+                st.write(f"- Jumlah mahasiswa: {len(df_filtered)}")
+                st.write(f"- Persentase prediksi lulus: {(len(df_filtered[df_filtered['Prediksi'] == 'Lulus']) / len(df_filtered)) * 100:.1f}%")
+                
             else:
-                st.warning("⚠ Tidak ada data mahasiswa untuk jurusan ini.")
+                st.warning(f"⚠ Tidak ada data mahasiswa untuk jurusan {current_jurusan}.")
 
         except Exception as e:
             st.error(f"❌ Gagal membaca file: {e}")
@@ -202,7 +224,7 @@ elif st.session_state["user_role"] == "Admin":
 
     if menu_option == "📤 Upload Data":
         st.markdown("Silakan upload file data mahasiswa (.xlsx atau .csv):")
-        uploaded_file = st.file_uploader("Upload file", type=["xlsx", "csv"], key="uploader")
+        uploaded_file = st.file_ploader("Upload file", type=["xlsx", "csv"], key="uploader")
 
         if uploaded_file is not None:
             try:
