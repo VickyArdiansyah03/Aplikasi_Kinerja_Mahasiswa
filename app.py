@@ -175,9 +175,6 @@ elif st.session_state["user_role"] == "Dosen":
 
 # ======================= HALAMAN ADMIN =======================
 elif st.session_state["user_role"] == "Admin":
-    # Generate NIM acak misalnya 8 digit
-    nim = f"{random.randint(10000000, 99999999)}"
-    
     # Sidebar configuration
     st.sidebar.markdown("### 🛠 Akun Admin")
     st.sidebar.write(f"👤 {st.session_state['user_name']}")
@@ -276,6 +273,9 @@ elif st.session_state["user_role"] == "Admin":
 
             if submitted:
                 if nama and jurusan and ipk:
+                    # Generate NIM acak (8 digit)
+                    nim = f"{random.randint(10000000, 99999999)}"
+                    
                     new_data = pd.DataFrame([{
                         "NIM": nim,
                         "Nama Mahasiswa": nama,
@@ -289,22 +289,32 @@ elif st.session_state["user_role"] == "Admin":
                         "Waktu Penyelesaian": waktu_penyelesaian, 
                     }])
                 
-                    # load file excel
+                    # Path file Excel
                     excel_path = "data/Data_Mahasiswa.xlsx"
+                    
+                    # Pastikan folder 'data/' ada
+                    os.makedirs("data", exist_ok=True)
+                    
+                    # Cek apakah file sudah ada
                     if os.path.exists(excel_path):
+                        # Jika file ada, baca data lama dan gabungkan dengan data baru
                         existing_data = pd.read_excel(excel_path, engine="openpyxl")
                         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
                     else:
+                        # Jika file tidak ada, gunakan data baru
                         updated_data = new_data
 
-                    # Simpan data ke file Excel
+                    # Simpan ke file Excel
                     try:
                         updated_data.to_excel(excel_path, index=False, engine="openpyxl")
-                        st.success(f"✅ Data mahasiswa atas nama '{nama}' berhasil ditambahkan.")
+                        st.success(f"✅ Data mahasiswa '{nama}' berhasil disimpan di {excel_path}!")
+                        
+                        # Tampilkan data terbaru (opsional)
+                        st.dataframe(updated_data)
                     except Exception as e:
                         st.error(f"❌ Gagal menyimpan data: {e}")
                 else:
-                    st.warning("⚠ Harap lengkapi seluruh field yang wajib (Nama, Jurusan, IPK).")
+                    st.warning("⚠ Harap lengkapi Nama, Jurusan, dan IPK!")
 
     elif menu_option == "📊 Statistik":
         st.markdown("## 📊 Statistik Data Mahasiswa")
@@ -324,7 +334,7 @@ elif st.session_state["user_role"] == "Admin":
                     st.metric("IPK Tertinggi", f"{df_mahasiswa['IPK'].max():.2f}")
                 
                 # Distribusi Jurusan
-                st.markdown("### 🏫 Distribusi Jurusan")
+                st.markdown("### � Distribusi Jurusan")
                 jurusan_counts = df_mahasiswa['Jurusan'].value_counts()
                 fig1, ax1 = plt.subplots()
                 ax1.pie(jurusan_counts, labels=jurusan_counts.index, autopct='%1.1f%%', startangle=90)
