@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import joblib
 
 # ======================= PAGE CONFIGURATION =======================
 st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="centered", page_icon="🎓")
@@ -64,6 +65,23 @@ def login(nama, role):
 def logout():
     st.session_state.update({"logged_in": False, "user_role": None, "user_name": None})
 
+# ======================= FUNGSI PREDIKSI MODEL =======================
+def load_model():
+    try:
+        return joblib.load("model_kinerja_mahasiswa.pkl")
+    except:
+        st.warning("⚠️ Model belum tersedia. Gunakan prediksi IPK default.")
+        return None
+
+model = load_model()
+
+def model_predict(df_numerik):
+    if model:
+        prediksi = model.predict(df_numerik)
+        return prediksi
+    else:
+        return ["Lulus" if ipk >= 2.50 else "Tidak Lulus" for ipk in df_numerik['IPK']]
+
 # ======================= LOGIN PAGE =======================
 if not st.session_state["logged_in"]:
     st.markdown("""<div class="login-container">""", unsafe_allow_html=True)
@@ -120,103 +138,108 @@ else:
         else:
             st.warning("⚠️ Data tidak ditemukan.")
 
-    elif role == "Dosen" or role == "Admin":
+    elif role in ["Dosen", "Admin"]:
         st.markdown("## 📤 Upload / Tambah Data Mahasiswa")
 
-        with st.expander("➕ Tambah Mahasiswa Secara Manual"):
-            with st.form("form_tambah_mahasiswa"):
-                nim_baru = st.text_input("NIM")
-                nama_baru = st.text_input("Nama Mahasiswa")
-                jurusan_baru = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
-                ipk_baru = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
-                sks_baru = st.number_input("Jumlah SKS", min_value=0)
-                nilai_mk_baru = st.number_input("Nilai Mata Kuliah (rata-rata)", min_value=0.0, max_value=100.0)
-                hadir_baru = st.number_input("Jumlah Kehadiran", min_value=0)
-                tugas_baru = st.number_input("Jumlah Tugas", min_value=0)
-                skor_eval_baru = st.number_input("Skor Evaluasi Dosen oleh Mahasiswa", min_value=0.0, max_value=5.0, step=0.1)
-                masa_studi_baru = st.number_input("Waktu Masa Studi (dalam semester)", min_value=0)
+        pilihan_input = st.radio("Pilih metode input data:", ["Manual", "Upload Excel"])
 
-                submit_tambah = st.form_submit_button("Tambah Data")
+        if pilihan_input == "Manual":
+            with st.form("form_manual_input"):
+                nim = st.text_input("NIM")
+                nama = st.text_input("Nama Mahasiswa")
+                jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
+                ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
+                sks = st.number_input("Jumlah SKS", min_value=0)
+                nilai_mk = st.number_input("Nilai Mata Kuliah", min_value=0.0, max_value=100.0)
+                hadir = st.number_input("Jumlah Kehadiran", min_value=0)
+                tugas = st.number_input("Jumlah Tugas", min_value=0)
+                skor_eval = st.number_input("Skor Evaluasi Dosen oleh Mahasiswa", min_value=0.0, max_value=5.0)
+                masa_studi = st.number_input("Waktu Masa Studi (semester)", min_value=0)
 
-                if submit_tambah:
-                    new_data = pd.DataFrame([[
-                        nim_baru, nama_baru, jurusan_baru, ipk_baru,
-                        sks_baru, nilai_mk_baru, hadir_baru, tugas_baru,
-                        skor_eval_baru, masa_studi_baru
-                    ]], columns=[
-                        "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
-                        "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
-                        "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa",
-                        "Waktu Masa Studi"
-                    ])
-                    df_mahasiswa = pd.concat([df_mahasiswa, new_data], ignore_index=True)
-                    st.success("✅ Data mahasiswa berhasil ditambahkan.")
+                submit_btn = st.form_submit_button("Prediksi")
 
-        uploaded_file = st.file_uploader("📤 Atau upload file Excel (.xlsx)", type=["xlsx"])
-        if uploaded_file is not None:
-            try:
-                df_upload = pd.read_excel(uploaded_file, engine='openpyxl')
+                if submit_btn:
+                    data_baru = pd.DataFrame([{
+                        "NIM": nim,
+                        "Nama Mahasiswa": nama,
+                        "Jurusan": jurusan,
+                        "IPK": ipk,
+                        "Jumlah SKS": sks,
+                        "Nilai Mata Kuliah": nilai_mk,
+                        "Jumlah Kehadiran": hadir,
+                        "Jumlah Tugas": tugas,
+                        "Skor Evaluasi Dosen Oleh Mahasiswa": skor_eval,
+                        "Waktu Masa Studi": masa_studi
+                    }])
 
-                expected_cols = [
-                    "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
-                    "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
-                    "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa", "Waktu Masa Studi"
-                ]
-                if all(col in df_upload.columns for col in expected_cols):
-                    df_mahasiswa = df_upload
-                    st.success("✅ Data mahasiswa berhasil diunggah.")
-                else:
-                    st.error("❌ Format kolom tidak sesuai. Pastikan semua kolom berikut ada:\n" + ", ".join(expected_cols))
-            except Exception as e:
-                st.error(f"❌ Gagal membaca file: {e}")
+                    df_input = data_baru.copy()
+                    hasil_prediksi = model_predict(df_input[["IPK", "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa", "Waktu Masa Studi"]])
+                    data_baru["Prediksi"] = hasil_prediksi
+                    st.success("✅ Data berhasil diproses")
+                    st.dataframe(data_baru)
 
-        # Jika role dosen, filter jurusan sesuai dosen
-        if role == "Dosen":
-            jurusan_mapping = {
-                "Dr. Ahmad": "Teknik Informatika",
-                "Prof. Budi": "Sistem Informasi",
-                "Dr. Siti": "Akuntansi",
-                "Dr. Rina": "Manajemen",
-                "Ir.Bambang": "Teknik Elektro"
-            }
-            jurusan = jurusan_mapping.get(st.session_state["user_name"])
-            if jurusan:
-                df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
-
-        if not df_mahasiswa.empty:
-            # Prediksi sederhana berdasarkan IPK
-            df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-            df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
-                lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
-                            85.0 if row['IPK'] >= 2.50 else
-                            20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0, axis=1)
-            df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
-
-            st.markdown("### 📋 Data Mahasiswa")
-            st.dataframe(df_mahasiswa)
-
-            st.markdown("#### 🔮 Prediksi Mahasiswa")
-            st.dataframe(df_mahasiswa[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
-
-            st.markdown("#### 📊 Rata-rata Probabilitas")
-            avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
-            avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
-
-            fig, ax = plt.subplots()
-            ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-            ax.axis('equal')
-            st.pyplot(fig)
-
-            st.markdown("#### 📈 Statistik IPK")
-            st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
-            st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
-            st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
-
-            fig, ax = plt.subplots()
-            ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
-            ax.set_title("Distribusi IPK Mahasiswa")
-            ax.set_xlabel("IPK")
-            ax.set_ylabel("Jumlah Mahasiswa")
-            st.pyplot(fig)
         else:
-            st.warning("⚠️ Tidak ada data mahasiswa untuk ditampilkan.")
+            uploaded_file = st.file_uploader("Unggah file Excel", type=["xlsx"])
+            if uploaded_file is not None:
+                df_upload = pd.read_excel(uploaded_file)
+                if model:
+                    prediksi = model_predict(df_upload[["IPK", "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa", "Waktu Masa Studi"]])
+                    df_upload["Prediksi"] = prediksi
+                else:
+                    df_upload["Prediksi"] = df_upload["IPK"].apply(lambda x: "Lulus" if x >= 2.5 else "Tidak Lulus")
+                st.success("✅ Data berhasil diprediksi")
+                st.dataframe(df_upload)
+'''
+
+with open("/mnt/data/streamlit_kinerja_mahasiswa.py", "w") as f:
+    f.write(code)
+
+"/mnt/data/streamlit_kinerja_mahasiswa.py"
+
+Result
+'/mnt/data/streamlit_kinerja_mahasiswa.py'
+Berikut adalah versi lengkap dan sudah disesuaikan dari kode kamu, dengan penambahan fitur simpan data mahasiswa ke file Excel (data/Data_Mahasiswa.xlsx) secara otomatis setiap kali data diunggah atau ditambahkan secara manual.
+
+Penyesuaian dilakukan di dua tempat:
+
+Setelah Tambah Data manual.
+
+Setelah Upload File Excel.
+
+✅ Perubahan Utama (Ringkasan):
+Ditambahkan baris df_mahasiswa.to_excel("data/Data_Mahasiswa.xlsx", index=False) setelah data ditambahkan atau diunggah.
+
+Ditambahkan import os di awal karena direktori data/ perlu dipastikan ada.
+
+🧩 Potongan Kode Baru yang Harus Ditambahkan
+Tambahkan ini di awal file, setelah import pandas as pd:
+
+python
+Copy
+Edit
+import os
+Lalu ubah bagian Tambah Data Mahasiswa Secara Manual jadi seperti ini:
+
+python
+Copy
+Edit
+if submit_tambah:
+    new_data = pd.DataFrame([[
+        nim_baru, nama_baru, jurusan_baru, ipk_baru,
+        sks_baru, nilai_mk_baru, hadir_baru, tugas_baru,
+        skor_eval_baru, masa_studi_baru
+    ]], columns=[
+        "NIM", "Nama Mahasiswa", "Jurusan", "IPK",
+        "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran",
+        "Jumlah Tugas", "Skor Evaluasi Dosen Oleh Mahasiswa",
+        "Waktu Masa Studi"
+    ])
+    df_mahasiswa = pd.concat([df_mahasiswa, new_data], ignore_index=True)
+    
+    # Simpan ke file Excel
+    try:
+        os.makedirs("data", exist_ok=True)
+        df_mahasiswa.to_excel("data/Data_Mahasiswa.xlsx", index=False)
+        st.success("✅ Data mahasiswa berhasil ditambahkan dan disimpan.")
+    except Exception as e:
+        st.error(f"❌ Gagal menyimpan ke file: {e}")
