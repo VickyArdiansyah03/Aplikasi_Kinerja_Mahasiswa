@@ -5,6 +5,19 @@ import matplotlib.pyplot as plt
 # ======================= PAGE CONFIGURATION =======================
 st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="centered", page_icon="🎓")
 
+# ======================= GLOBAL WHITE BACKGROUND =======================
+st.markdown("""
+    <style>
+    body {
+        background-color: white !important;
+    }
+    .stApp {
+        background-color: white;
+        color: black;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ======================= LOAD DATA =======================
 def load_mahasiswa_data():
     try:
