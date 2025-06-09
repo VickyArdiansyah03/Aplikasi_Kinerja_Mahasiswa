@@ -56,25 +56,77 @@ if not st.session_state["logged_in"]:
             border-radius: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 450px;
-            margin: auto;
+            max-width: 450px;import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Contoh data mahasiswa dummy
+df_mahasiswa = pd.DataFrame({
+    "Nama Mahasiswa": ["Ahmad Subari", "Budi Santoso", "Citra Dewi", "Dewi Lestari"],
+    "Jurusan": ["Teknik Informatika", "Sistem Informasi", "Teknik Informatika", "Manajemen"],
+    "IPK": [3.2, 2.8, 1.9, 3.5]
+})
+
+def login(nama_user, role):
+    # Cek apakah nama dan role cocok (contoh sederhana)
+    users = {
+        "Ahmad Subari": "Mahasiswa",
+        "Dr. Ahmad": "Dosen",
+        "Admin": "Admin"
+    }
+    return users.get(nama_user) == role
+
+def logout():
+    for key in ["user_name", "user_role"]:
+        if key in st.session_state:
+            del st.session_state[key]
+
+if "user_name" not in st.session_state:
+    st.markdown("""
+        <style>
+        /* Container login terang */
+        .login-container {
+            max-width: 400px;
+            padding: 2rem;
+            margin: 4rem auto;
+            background-color: #f9f9f9;  /* background terang */
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .login-title {
-            color: #2c3e50;
+            color: #333333; /* teks gelap */
             text-align: center;
             font-size: 2rem;
             margin-bottom: 1rem;
+            font-weight: 600;
         }
         .login-subtitle {
             text-align: center;
-            color: #7f8c8d;
+            color: #666666; /* abu-abu medium */
             margin-bottom: 2rem;
+            font-size: 1rem;
         }
         .footer {
             text-align: center;
-            color: #95a5a6;
+            color: #999999;
             font-size: 0.8rem;
             margin-top: 3rem;
+            font-style: italic;
+        }
+        /* Style tombol */
+        div.stButton > button {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        div.stButton > button:hover {
+            background-color: #45a049;
         }
         </style>
 
@@ -90,8 +142,10 @@ if not st.session_state["logged_in"]:
 
         if submitted:
             if login(nama_user, role):
+                st.session_state["user_name"] = nama_user
+                st.session_state["user_role"] = role
                 st.success(f"✅ Selamat datang, {nama_user}!")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("❌ Nama tidak ditemukan. Silakan periksa kembali.")
 
@@ -100,12 +154,11 @@ if not st.session_state["logged_in"]:
         <div class="footer">© 2025 Sistem Prediksi Kinerja Mahasiswa</div>
     """, unsafe_allow_html=True)
 
-# ======================= DASHBOARD PAGE =======================
 else:
     st.sidebar.markdown(f"### 👋 Selamat datang, {st.session_state['user_name']} ({st.session_state['user_role']})")
     if st.sidebar.button("🚪 Logout"):
         logout()
-        st.rerun()
+        st.experimental_rerun()
 
     st.title("🏠 Beranda Aplikasi Prediksi Kinerja Mahasiswa")
     st.markdown("""
@@ -117,8 +170,6 @@ else:
     - 📈 Menampilkan visualisasi distribusi IPK
     - 🛠️ Upload dan analisis data mahasiswa (.xlsx)
     """)
-
-    st.divider()
 
     role = st.session_state["user_role"]
 
@@ -166,7 +217,8 @@ else:
                         "Ir.Bambang": "Teknik Elektro"
                     }
                     jurusan = jurusan_mapping.get(st.session_state["user_name"])
-                    df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
+                    if jurusan:
+                        df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
 
                 if df_mahasiswa.empty:
                     st.warning("⚠️ Tidak ada data mahasiswa untuk ditampilkan.")
