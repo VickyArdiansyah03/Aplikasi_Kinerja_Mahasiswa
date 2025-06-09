@@ -46,56 +46,21 @@ def login(nama, role):
 def logout():
     st.session_state.update({"logged_in": False, "user_role": None, "user_name": None})
 
-# ======================= LOGIN PAGE (ESTETIK) =======================
+# ======================= LOGIN PAGE (LIGHT MODE) =======================
 if not st.session_state["logged_in"]:
     st.markdown("""
         <style>
         .login-container {
-            background-color: #f8f9fa;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 450px;import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# Contoh data mahasiswa dummy
-df_mahasiswa = pd.DataFrame({
-    "Nama Mahasiswa": ["Ahmad Subari", "Budi Santoso", "Citra Dewi", "Dewi Lestari"],
-    "Jurusan": ["Teknik Informatika", "Sistem Informasi", "Teknik Informatika", "Manajemen"],
-    "IPK": [3.2, 2.8, 1.9, 3.5]
-})
-
-def login(nama_user, role):
-    # Cek apakah nama dan role cocok (contoh sederhana)
-    users = {
-        "Ahmad Subari": "Mahasiswa",
-        "Dr. Ahmad": "Dosen",
-        "Admin": "Admin"
-    }
-    return users.get(nama_user) == role
-
-def logout():
-    for key in ["user_name", "user_role"]:
-        if key in st.session_state:
-            del st.session_state[key]
-
-if "user_name" not in st.session_state:
-    st.markdown("""
-        <style>
-        /* Container login terang */
-        .login-container {
             max-width: 400px;
             padding: 2rem;
-            margin: 4rem auto;
-            background-color: #f9f9f9;  /* background terang */
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 3rem auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+            font-family: 'Segoe UI', sans-serif;
         }
         .login-title {
-            color: #333333; /* teks gelap */
+            color: #222;
             text-align: center;
             font-size: 2rem;
             margin-bottom: 1rem;
@@ -103,36 +68,33 @@ if "user_name" not in st.session_state:
         }
         .login-subtitle {
             text-align: center;
-            color: #666666; /* abu-abu medium */
+            color: #555;
             margin-bottom: 2rem;
             font-size: 1rem;
         }
         .footer {
             text-align: center;
-            color: #999999;
+            color: #999;
             font-size: 0.8rem;
             margin-top: 3rem;
-            font-style: italic;
         }
-        /* Style tombol */
         div.stButton > button {
-            background-color: #4CAF50;
+            background-color: #3498db;
             color: white;
             font-weight: 600;
             border-radius: 6px;
             padding: 0.6rem 1.2rem;
             border: none;
             cursor: pointer;
-            transition: background-color 0.3s ease;
         }
         div.stButton > button:hover {
-            background-color: #45a049;
+            background-color: #2980b9;
         }
         </style>
 
         <div class="login-container">
-            <div class="login-title">🎓 Login Aplikasi Prediksi Kinerja</div>
-            <div class="login-subtitle">Silakan login untuk mengakses fitur aplikasi</div>
+            <div class="login-title">🎓 Login Aplikasi Prediksi</div>
+            <div class="login-subtitle">Silakan login untuk melanjutkan</div>
     """, unsafe_allow_html=True)
 
     with st.form("login_form"):
@@ -142,8 +104,6 @@ if "user_name" not in st.session_state:
 
         if submitted:
             if login(nama_user, role):
-                st.session_state["user_name"] = nama_user
-                st.session_state["user_role"] = role
                 st.success(f"✅ Selamat datang, {nama_user}!")
                 st.experimental_rerun()
             else:
@@ -154,6 +114,7 @@ if "user_name" not in st.session_state:
         <div class="footer">© 2025 Sistem Prediksi Kinerja Mahasiswa</div>
     """, unsafe_allow_html=True)
 
+# ======================= MAIN PAGE =======================
 else:
     st.sidebar.markdown(f"### 👋 Selamat datang, {st.session_state['user_name']} ({st.session_state['user_role']})")
     if st.sidebar.button("🚪 Logout"):
@@ -164,7 +125,7 @@ else:
     st.markdown("""
     Selamat datang di aplikasi prediksi kinerja mahasiswa. 
     Aplikasi ini memungkinkan mahasiswa, dosen, dan admin untuk:
-    
+
     - 📊 Melihat data IPK mahasiswa
     - 🔮 Melihat prediksi kelulusan berdasarkan IPK dan jurusan
     - 📈 Menampilkan visualisasi distribusi IPK
