@@ -24,8 +24,38 @@ df_mahasiswa = load_mahasiswa_data()
 df_dosen = load_dosen_data()
 
 # ======================= SESSION STATE =======================
-if "logged_in" not in st.session_state:
-    st.session_state.update({"logged_in": False, "user_role": None, "user_name": None})
+# ======================= HALAMAN LOGIN (ESTETIK) =======================
+if not st.session_state["logged_in"]:
+    st.markdown("""
+        <div style='text-align: center;'>
+            <h1 style='font-size: 42px;'>🎓<br>Login Aplikasi Prediksi Kinerja Mahasiswa</h1>
+            <p style='color: gray; font-size: 18px;'>Silakan login terlebih dahulu untuk mengakses fitur aplikasi</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("login_form", clear_on_submit=False):
+        st.markdown("#### 🧑 Nama Lengkap")
+        nama_user = st.text_input("", placeholder="Masukkan nama lengkap Anda")
+
+        st.markdown("#### 👥 Masuk Sebagai")
+        role = st.selectbox("", ["Mahasiswa", "Dosen", "Admin"])
+
+        submitted = st.form_submit_button("🚀 Login", use_container_width=True)
+
+        if submitted:
+            if login(nama_user, role):
+                st.success(f"✅ Selamat datang, {nama_user}!")
+                st.rerun()
+            else:
+                st.error("❌ Nama tidak ditemukan. Silakan periksa kembali.")
+    
+    st.markdown("""
+        <hr style="margin-top: 2rem; margin-bottom: 1rem;">
+        <div style="text-align:center; color:gray;">
+            <small>© 2025 Sistem Prediksi Kinerja Mahasiswa</small>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 admin_users = ["admin1", "admin2"]
 
