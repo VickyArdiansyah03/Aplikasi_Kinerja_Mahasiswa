@@ -59,57 +59,9 @@ def login(nama, role):
 def logout():
     st.session_state.update({"logged_in": False, "user_role": None, "user_name": None})
 
-# ======================= LOGIN PAGE (LIGHT MODE) =======================
+# ======================= LOGIN PAGE =======================
 if not st.session_state["logged_in"]:
-    st.markdown("""
-        <style>
-        .login-container {
-            max-width: 400px;
-            padding: 2rem;
-            margin: 3rem auto;
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
-            font-family: 'Segoe UI', sans-serif;
-        }
-        .login-title {
-            color: #222;
-            text-align: center;
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        .login-subtitle {
-            text-align: center;
-            color: #555;
-            margin-bottom: 2rem;
-            font-size: 1rem;
-        }
-        .footer {
-            text-align: center;
-            color: #999;
-            font-size: 0.8rem;
-            margin-top: 3rem;
-        }
-        div.stButton > button {
-            background-color: #3498db;
-            color: white;
-            font-weight: 600;
-            border-radius: 6px;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            cursor: pointer;
-        }
-        div.stButton > button:hover {
-            background-color: #2980b9;
-        }
-        </style>
-
-        <div class="login-container">
-            <div class="login-title">🎓 Login Aplikasi Prediksi</div>
-            <div class="login-subtitle">Silakan login untuk melanjutkan</div>
-    """, unsafe_allow_html=True)
-
+    st.markdown("""<div class="login-container">""", unsafe_allow_html=True)
     with st.form("login_form"):
         nama_user = st.text_input("🧑 Nama Lengkap", placeholder="Contoh: Ahmad Subari")
         role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin"])
@@ -121,11 +73,7 @@ if not st.session_state["logged_in"]:
                 st.experimental_rerun()
             else:
                 st.error("❌ Nama tidak ditemukan. Silakan periksa kembali.")
-
-    st.markdown("""
-        </div>
-        <div class="footer">© 2025 Sistem Prediksi Kinerja Mahasiswa</div>
-    """, unsafe_allow_html=True)
+    st.markdown("""</div><div class="footer">© 2025 Sistem Prediksi Kinerja Mahasiswa</div>""", unsafe_allow_html=True)
 
 # ======================= MAIN PAGE =======================
 else:
@@ -135,15 +83,6 @@ else:
         st.experimental_rerun()
 
     st.title("🏠 Beranda Aplikasi Prediksi Kinerja Mahasiswa")
-    st.markdown("""
-    Selamat datang di aplikasi prediksi kinerja mahasiswa. 
-    Aplikasi ini memungkinkan mahasiswa, dosen, dan admin untuk:
-
-    - 📊 Melihat data IPK mahasiswa
-    - 🔮 Melihat prediksi kelulusan berdasarkan IPK dan jurusan
-    - 📈 Menampilkan visualisasi distribusi IPK
-    - 🛠️ Upload dan analisis data mahasiswa (.xlsx)
-    """)
 
     role = st.session_state["user_role"]
 
@@ -177,60 +116,72 @@ else:
             st.warning("⚠️ Data tidak ditemukan.")
 
     elif role == "Dosen" or role == "Admin":
-        uploaded_file = st.file_uploader("📤 Upload file data mahasiswa (.xlsx)", type=["xlsx"])
+        st.markdown("## 📤 Upload / Tambah Data Mahasiswa")
+
+        with st.expander("➕ Tambah Mahasiswa Secara Manual"):
+            with st.form("form_tambah_mahasiswa"):
+                nama_baru = st.text_input("Nama Mahasiswa")
+                jurusan_baru = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Manajemen", "Teknik Elektro"])
+                ipk_baru = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01)
+                submit_tambah = st.form_submit_button("Tambah Data")
+
+                if submit_tambah:
+                    new_data = pd.DataFrame([[nama_baru, jurusan_baru, ipk_baru]], columns=["Nama Mahasiswa", "Jurusan", "IPK"])
+                    df_mahasiswa = pd.concat([df_mahasiswa, new_data], ignore_index=True)
+                    st.success("✅ Data mahasiswa berhasil ditambahkan.")
+
+        uploaded_file = st.file_uploader("📤 Atau upload file Excel (.xlsx)", type=["xlsx"])
         if uploaded_file is not None:
             try:
                 df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
-
-                if role == "Dosen":
-                    jurusan_mapping = {
-                        "Dr. Ahmad": "Teknik Informatika",
-                        "Prof. Budi": "Sistem Informasi",
-                        "Dr. Siti": "Akuntansi",
-                        "Dr. Rina": "Manajemen",
-                        "Ir.Bambang": "Teknik Elektro"
-                    }
-                    jurusan = jurusan_mapping.get(st.session_state["user_name"])
-                    if jurusan:
-                        df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
-
-                if df_mahasiswa.empty:
-                    st.warning("⚠️ Tidak ada data mahasiswa untuk ditampilkan.")
-                else:
-                    st.markdown("### 📋 Data Mahasiswa")
-                    st.dataframe(df_mahasiswa)
-
-                    df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
-                    df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
-                        lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
-                                    85.0 if row['IPK'] >= 2.50 else
-                                    20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0, axis=1)
-                    df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
-
-                    st.markdown("#### 🔮 Prediksi Mahasiswa")
-                    st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
-
-                    st.markdown("#### 📊 Rata-rata Probabilitas")
-                    avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
-                    avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
-
-                    fig, ax = plt.subplots()
-                    ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-                    ax.axis('equal')
-                    st.pyplot(fig)
-
-                    st.markdown("#### 📈 Statistik IPK")
-                    st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
-                    st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
-                    st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
-
-                    fig, ax = plt.subplots()
-                    ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
-                    ax.set_title("Distribusi IPK Mahasiswa")
-                    ax.set_xlabel("IPK")
-                    ax.set_ylabel("Jumlah Mahasiswa")
-                    st.pyplot(fig)
             except Exception as e:
                 st.error(f"❌ Gagal membaca file: {e}")
+
+        if role == "Dosen":
+            jurusan_mapping = {
+                "Dr. Ahmad": "Teknik Informatika",
+                "Prof. Budi": "Sistem Informasi",
+                "Dr. Siti": "Akuntansi",
+                "Dr. Rina": "Manajemen",
+                "Ir.Bambang": "Teknik Elektro"
+            }
+            jurusan = jurusan_mapping.get(st.session_state["user_name"])
+            if jurusan:
+                df_mahasiswa = df_mahasiswa[df_mahasiswa["Jurusan"] == jurusan]
+
+        if not df_mahasiswa.empty:
+            df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+            df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
+                lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
+                            85.0 if row['IPK'] >= 2.50 else
+                            20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0, axis=1)
+            df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
+
+            st.markdown("### 📋 Data Mahasiswa")
+            st.dataframe(df_mahasiswa)
+
+            st.markdown("#### 🔮 Prediksi Mahasiswa")
+            st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+
+            st.markdown("#### 📊 Rata-rata Probabilitas")
+            avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
+            avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
+
+            fig, ax = plt.subplots()
+            ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+            ax.axis('equal')
+            st.pyplot(fig)
+
+            st.markdown("#### 📈 Statistik IPK")
+            st.write(f"- Rata-rata IPK: **{df_mahasiswa['IPK'].mean():.2f}**")
+            st.write(f"- Tertinggi: **{df_mahasiswa['IPK'].max():.2f}**")
+            st.write(f"- Terendah: **{df_mahasiswa['IPK'].min():.2f}**")
+
+            fig, ax = plt.subplots()
+            ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+            ax.set_title("Distribusi IPK Mahasiswa")
+            ax.set_xlabel("IPK")
+            ax.set_ylabel("Jumlah Mahasiswa")
+            st.pyplot(fig)
         else:
-            st.info("⬆️ Silakan upload file Excel terlebih dahulu.")
+            st.warning("⚠️ Tidak ada data mahasiswa untuk ditampilkan.")
