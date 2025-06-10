@@ -347,10 +347,27 @@ elif st.session_state["user_role"] == "Admin":
                         
                         # Tampilkan data terbaru (opsional)
                         st.dataframe(updated_data)
+
+                        # Load status dan path file di sesstion_state
+                        with open(excel_path, "rb") as f:
+                            st.session_state["excel_data"] = f.read()
+                            st.session_state["excel_ready"] = True
+
                     except Exception as e:
                         st.error(f"❌ Gagal menyimpan data: {e}")
                 else:
                     st.warning("⚠ Harap lengkapi Nama, Jurusan, dan IPK!")
+        
+        if st.session_state.get("excel_ready"):
+            st.download_button(
+                label="Download Data Terbaru",
+                data=st.session_state["excel_data"],
+                file_name="Data_Mahasiswa.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+            # Reset setelah download ditampilkan sekali
+            st.session_state["excel_ready"] = False
 
     elif menu_option == "📊 Statistik":
         st.markdown("## 📊 Statistik Data Mahasiswa")
