@@ -12,7 +12,7 @@ df = pd.read_excel(file_path, sheet_name="Sheet1")
 df["IPK_Category"] = np.where(df["IPK"] >= 3.0, 1, 0)
 
 # Select features
-features = ["Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Penilaian Dosen", "Waktu Penyelesaian"]
+features = ["Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Penilaian Dosen", "Waktu Penyelesaian", "CPL", "CPMK"]
 X = df[features]
 y = df["IPK_Category"]
 

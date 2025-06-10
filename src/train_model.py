@@ -32,7 +32,7 @@ def train_model(X_train, y_train, model_save_path):
     return model
 
 if __name__ == '__main__':
-    data_path = "D:/project machine23/data/Data_Mahasiswa.xlsx"
+    data_path = "data/Data_Mahasiswa.xlsx"
     
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"File dataset tidak ditemukan: {data_path}")
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    model_save_path = "D:/project machine23/models/random_forest_model.pkl"
+    model_save_path = "models/random_forest_model.pkl"
     trained_model = train_model(X_train, y_train, model_save_path)
     
     y_pred = trained_model.predict(X_test)
