@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Load data
-file_path = r"D:/project machine23/data/Data_Mahasiswa.xlsx"
+file_path = r"data/Data_Mahasiswa.xlsx"
 df = pd.read_excel(file_path, sheet_name="Sheet1")
 
 # Define target variable (classification: IPK >= 3.0 is High, otherwise Low)

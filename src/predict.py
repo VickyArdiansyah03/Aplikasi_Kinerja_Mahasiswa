@@ -40,7 +40,7 @@ def predict(input_data):
 
 if __name__ == "__main__":
     # Path ke file terbaru
-    data_path = r'D:/project machine23/data/Data_Mahasiswa.xlsx'
+    data_path = r'data/Data_Mahasiswa.xlsx'
     
     # Baca data Excel
     df = pd.read_excel(data_path)
