@@ -224,7 +224,7 @@ elif st.session_state["user_role"] == "Admin":
 
     if menu_option == "📤 Upload Data":
         st.markdown("Silakan upload file data mahasiswa (.xlsx atau .csv):")
-        uploaded_file = st.file_ploader("Upload file", type=["xlsx", "csv"], key="uploader")
+        uploaded_file = st.file_uploader("Upload file", type=["xlsx", "csv"], key="uploader")
 
         if uploaded_file is not None:
             try:
