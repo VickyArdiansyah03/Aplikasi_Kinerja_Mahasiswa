@@ -11,7 +11,7 @@ st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="cen
 # ======================= LOAD DATA MAHASISWA & DOSEN =======================
 def load_mahasiswa_data():
     try:
-        df = pd.read_excel(r"data/Data_Mahasiswa.xlsx")
+        df = pd.read_excel(r"data/Data_Mahasiswa.xlsx", dtype={'NIM': str})  # Ensure NIM is read as string
         return df
     except Exception as e:
         st.error(f"Gagal memuat data mahasiswa: {e}")
@@ -80,9 +80,9 @@ elif st.session_state["user_role"] == "Mahasiswa":
 
     if not mahasiswa_data.empty:
         st.markdown("#### 📄 Data Anda")
-        st.dataframe(mahasiswa_data)
+        st.dataframe(mahasiswa_data.astype(str))  # Convert all columns to string for display
 
-        ipk = mahasiswa_data["IPK"].iloc[0]
+        ipk = float(mahasiswa_data["IPK"].iloc[0])
         jurusan = mahasiswa_data["Jurusan"].iloc[0]
 
         if ipk >= 2.50:
@@ -133,9 +133,9 @@ elif st.session_state["user_role"] == "Dosen":
         try:
             # Check file extension
             if uploaded_file.name.endswith('.xlsx'):
-                df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
+                df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl', dtype={'NIM': str})
             elif uploaded_file.name.endswith('.csv'):
-                df_mahasiswa = pd.read_csv(uploaded_file)
+                df_mahasiswa = pd.read_csv(uploaded_file, dtype={'NIM': str})
             else:
                 st.error("Format file tidak didukung. Harap upload file Excel (.xlsx) atau CSV (.csv)")
                 st.stop()
@@ -145,21 +145,21 @@ elif st.session_state["user_role"] == "Dosen":
 
             if not df_filtered.empty:
                 st.markdown(f"### 🎓 Data Mahasiswa Jurusan {current_jurusan}")
-                st.dataframe(df_filtered)
+                st.dataframe(df_filtered.astype(str))  # Convert all columns to string for display
 
                 # Proses prediksi kelulusan
-                df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+                df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
                 
                 # Adjust probabilities based on department
                 if current_jurusan == "Teknik Informatika":
-                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 90.0 if x >= 2.50 else 20.0)
+                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 90.0 if float(x) >= 2.50 else 20.0)
                 else:
-                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 85.0 if x >= 2.50 else 15.0)
+                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 85.0 if float(x) >= 2.50 else 15.0)
                     
                 df_filtered['Prob_Tidak_Lulus'] = 100.0 - df_filtered['Prob_Lulus']
 
                 st.markdown("#### 🔮 Prediksi Mahasiswa")
-                st.dataframe(df_filtered[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+                st.dataframe(df_filtered[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
 
                 st.markdown("#### 📊 Rata-rata Probabilitas")
                 avg_lulus = df_filtered['Prob_Lulus'].mean()
@@ -176,14 +176,14 @@ elif st.session_state["user_role"] == "Dosen":
                 st.markdown("#### 📈 Statistik IPK")
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Rata-rata IPK", f"{df_filtered['IPK'].mean():.2f}")
+                    st.metric("Rata-rata IPK", f"{df_filtered['IPK'].astype(float).mean():.2f}")
                 with col2:
-                    st.metric("IPK Tertinggi", f"{df_filtered['IPK'].max():.2f}")
+                    st.metric("IPK Tertinggi", f"{df_filtered['IPK'].astype(float).max():.2f}")
                 with col3:
-                    st.metric("IPK Terendah", f"{df_filtered['IPK'].min():.2f}")
+                    st.metric("IPK Terendah", f"{df_filtered['IPK'].astype(float).min():.2f}")
 
                 fig, ax = plt.subplots()
-                ax.hist(df_filtered["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+                ax.hist(df_filtered["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
                 ax.set_title(f"Distribusi IPK Mahasiswa {current_jurusan}")
                 ax.set_xlabel("IPK")
                 ax.set_ylabel("Jumlah Mahasiswa")
@@ -230,29 +230,29 @@ elif st.session_state["user_role"] == "Admin":
             try:
                 # Check file extension
                 if uploaded_file.name.endswith('.xlsx'):
-                    df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl')
+                    df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl', dtype={'NIM': str})
                 elif uploaded_file.name.endswith('.csv'):
-                    df_mahasiswa = pd.read_csv(uploaded_file)
+                    df_mahasiswa = pd.read_csv(uploaded_file, dtype={'NIM': str})
                 else:
                     st.error("Format file tidak didukung. Harap upload file Excel (.xlsx) atau CSV (.csv)")
                     st.stop()
 
                 if not df_mahasiswa.empty:
                     st.markdown("### 🎓 Seluruh Data Mahasiswa")
-                    st.dataframe(df_mahasiswa)
+                    st.dataframe(df_mahasiswa.astype(str))  # Convert all columns to string for display
 
                     # Proses prediksi kelulusan
-                    df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if x >= 2.50 else "Tidak Lulus")
+                    df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
                     df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
-                        lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and row['IPK'] >= 2.50 else
-                                    85.0 if row['IPK'] >= 2.50 else
+                        lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and float(row['IPK']) >= 2.50 else
+                                    85.0 if float(row['IPK']) >= 2.50 else
                                     20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0,
                         axis=1
                     )
                     df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
 
                     st.markdown("#### 🔮 Prediksi Mahasiswa")
-                    st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']])
+                    st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
 
                     # Visualisasi rata-rata probabilitas
                     st.markdown("#### 📊 Rata-rata Probabilitas")
@@ -266,12 +266,12 @@ elif st.session_state["user_role"] == "Admin":
 
                     # Statistik IPK
                     st.markdown("#### 📈 Statistik IPK")
-                    st.write(f"- Rata-rata IPK: {df_mahasiswa['IPK'].mean():.2f}")
-                    st.write(f"- IPK Tertinggi: {df_mahasiswa['IPK'].max():.2f}")
-                    st.write(f"- IPK Terendah: {df_mahasiswa['IPK'].min():.2f}")
+                    st.write(f"- Rata-rata IPK: {df_mahasiswa['IPK'].astype(float).mean():.2f}")
+                    st.write(f"- IPK Tertinggi: {df_mahasiswa['IPK'].astype(float).max():.2f}")
+                    st.write(f"- IPK Terendah: {df_mahasiswa['IPK'].astype(float).min():.2f}")
 
                     fig, ax = plt.subplots()
-                    ax.hist(df_mahasiswa["IPK"], bins=10, color="#4CAF50", edgecolor="black")
+                    ax.hist(df_mahasiswa["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
                     ax.set_title("Distribusi IPK Mahasiswa")
                     ax.set_xlabel("IPK")
                     ax.set_ylabel("Jumlah Mahasiswa")
@@ -311,22 +311,22 @@ elif st.session_state["user_role"] == "Admin":
 
             if submitted:
                 if nama and jurusan and ipk:
-                    # Generate NIM acak (8 digit)
-                    nim = f"{random.randint(10000000, 99999999)}"
+                    # Generate NIM acak (8 digit) as string
+                    nim = str(random.randint(10000000, 99999999))
                     
                     new_data = pd.DataFrame([{
                         "NIM": nim,
                         "Nama Mahasiswa": nama,
                         "Jurusan": jurusan,
-                        "IPK": ipk,
-                        "Jumlah SKS": sks,
-                        "Nilai Mata Kuliah": nilai_matkul,
-                        "Jumlah Kehadiran": kehadiran,
-                        "Jumlah Tugas": tugas,
-                        "Skor Penilaian Dosen": penilaian_dosen,
-                        "CPMK": cpmk,
-                        "CPL": cpl,
-                        "Waktu Penyelesaian": waktu_penyelesaian, 
+                        "IPK": float(ipk),
+                        "Jumlah SKS": float(sks),
+                        "Nilai Mata Kuliah": float(nilai_matkul),
+                        "Jumlah Kehadiran": float(kehadiran),
+                        "Jumlah Tugas": float(tugas),
+                        "Skor Penilaian Dosen": float(penilaian_dosen),
+                        "CPMK": float(cpmk),
+                        "CPL": float(cpl),
+                        "Waktu Penyelesaian": float(waktu_penyelesaian), 
                     }])
                 
                     # Path file Excel
@@ -338,7 +338,7 @@ elif st.session_state["user_role"] == "Admin":
                     # Cek apakah file sudah ada
                     if os.path.exists(excel_path):
                         # Jika file ada, baca data lama dan gabungkan dengan data baru
-                        existing_data = pd.read_excel(excel_path, engine="openpyxl")
+                        existing_data = pd.read_excel(excel_path, engine="openpyxl", dtype={'NIM': str})
                         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
                     else:
                         # Jika file tidak ada, gunakan data baru
@@ -350,7 +350,7 @@ elif st.session_state["user_role"] == "Admin":
                         st.success(f"✅ Data mahasiswa '{nama}' berhasil disimpan di {excel_path}!")
                         
                         # Tampilkan data terbaru (opsional)
-                        st.dataframe(updated_data)
+                        st.dataframe(updated_data.astype(str))
 
                         # Load status dan path file di sesstion_state
                         with open(excel_path, "rb") as f:
@@ -377,7 +377,7 @@ elif st.session_state["user_role"] == "Admin":
         st.markdown("## 📊 Statistik Data Mahasiswa")
         
         try:
-            df_mahasiswa = pd.read_excel("data/Data_Mahasiswa.xlsx", engine='openpyxl')
+            df_mahasiswa = pd.read_excel("data/Data_Mahasiswa.xlsx", engine='openpyxl', dtype={'NIM': str})
             
             if not df_mahasiswa.empty:
                 # Statistik umum
@@ -386,9 +386,9 @@ elif st.session_state["user_role"] == "Admin":
                 with col1:
                     st.metric("Total Mahasiswa", len(df_mahasiswa))
                 with col2:
-                    st.metric("Rata-rata IPK", f"{df_mahasiswa['IPK'].mean():.2f}")
+                    st.metric("Rata-rata IPK", f"{df_mahasiswa['IPK'].astype(float).mean():.2f}")
                 with col3:
-                    st.metric("IPK Tertinggi", f"{df_mahasiswa['IPK'].max():.2f}")
+                    st.metric("IPK Tertinggi", f"{df_mahasiswa['IPK'].astype(float).max():.2f}")
                 
                 # Distribusi Jurusan
                 st.markdown("### 🏫 Distribusi Jurusan")
@@ -401,7 +401,7 @@ elif st.session_state["user_role"] == "Admin":
                 # Distribusi IPK
                 st.markdown("### 📊 Distribusi IPK")
                 fig2, ax2 = plt.subplots()
-                ax2.hist(df_mahasiswa['IPK'], bins=10, color='skyblue', edgecolor='black')
+                ax2.hist(df_mahasiswa['IPK'].astype(float), bins=10, color='skyblue', edgecolor='black')
                 ax2.set_xlabel('IPK')
                 ax2.set_ylabel('Jumlah Mahasiswa')
                 st.pyplot(fig2)
