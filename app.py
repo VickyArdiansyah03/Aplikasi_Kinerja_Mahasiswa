@@ -82,25 +82,29 @@ elif st.session_state["user_role"] == "Mahasiswa":
         st.markdown("#### 📄 Data Anda")
         st.dataframe(mahasiswa_data.astype(str))  # Convert all columns to string for display
 
-        ipk = float(mahasiswa_data["IPK"].iloc[0])
-        jurusan = mahasiswa_data["Jurusan"].iloc[0]
+        # Validasi NIM sebelum melakukan prediksi
+        if 'NIM' in mahasiswa_data.columns and not pd.isna(mahasiswa_data['NIM'].iloc[0]) and str(mahasiswa_data['NIM'].iloc[0]).strip() != '':
+            ipk = float(mahasiswa_data["IPK"].iloc[0])
+            jurusan = mahasiswa_data["Jurusan"].iloc[0]
 
-        if ipk >= 2.50:
-            prediksi = "Lulus"
-            prob_lulus = 90.0 if jurusan == "Teknik Informatika" else 85.0
+            if ipk >= 2.50:
+                prediksi = "Lulus"
+                prob_lulus = 90.0 if jurusan == "Teknik Informatika" else 85.0
+            else:
+                prediksi = "Tidak Lulus"
+                prob_lulus = 20.0 if jurusan == "Teknik Informatika" else 15.0
+            prob_tidak_lulus = 100.0 - prob_lulus
+
+            st.markdown(f"### 🎯 Prediksi: {prediksi}")
+            st.metric("✅ Probabilitas Lulus", f"{prob_lulus}%")
+            st.metric("❌ Probabilitas Tidak Lulus", f"{prob_tidak_lulus}%")
+
+            fig, ax = plt.subplots()
+            ax.pie([prob_lulus, prob_tidak_lulus], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+            ax.axis('equal')
+            st.pyplot(fig)
         else:
-            prediksi = "Tidak Lulus"
-            prob_lulus = 20.0 if jurusan == "Teknik Informatika" else 15.0
-        prob_tidak_lulus = 100.0 - prob_lulus
-
-        st.markdown(f"### 🎯 Prediksi: {prediksi}")
-        st.metric("✅ Probabilitas Lulus", f"{prob_lulus}%")
-        st.metric("❌ Probabilitas Tidak Lulus", f"{prob_tidak_lulus}%")
-
-        fig, ax = plt.subplots()
-        ax.pie([prob_lulus, prob_tidak_lulus], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-        ax.axis('equal')
-        st.pyplot(fig)
+            st.warning("⚠ NIM tidak valid/tidak tersedia. Tidak dapat melakukan prediksi.")
     else:
         st.warning("⚠ Data tidak ditemukan.")
 
@@ -144,55 +148,66 @@ elif st.session_state["user_role"] == "Dosen":
             df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == current_jurusan]
 
             if not df_filtered.empty:
+                # Validasi NIM sebelum menampilkan data
+                if 'NIM' not in df_filtered.columns or df_filtered['NIM'].isnull().any():
+                    st.warning("⚠ Beberapa data mahasiswa tidak memiliki NIM yang valid")
+                
                 st.markdown(f"### 🎓 Data Mahasiswa Jurusan {current_jurusan}")
                 st.dataframe(df_filtered.astype(str))  # Convert all columns to string for display
 
-                # Proses prediksi kelulusan
-                df_filtered['Prediksi'] = df_filtered['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
+                # Hanya proses prediksi untuk mahasiswa dengan NIM valid
+                df_filtered_valid = df_filtered[df_filtered['NIM'].notna() & (df_filtered['NIM'] != '')]
                 
-                # Adjust probabilities based on department
-                if current_jurusan == "Teknik Informatika":
-                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 90.0 if float(x) >= 2.50 else 20.0)
-                else:
-                    df_filtered['Prob_Lulus'] = df_filtered['IPK'].apply(lambda x: 85.0 if float(x) >= 2.50 else 15.0)
+                if not df_filtered_valid.empty:
+                    # Proses prediksi kelulusan
+                    df_filtered_valid['Prediksi'] = df_filtered_valid['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
                     
-                df_filtered['Prob_Tidak_Lulus'] = 100.0 - df_filtered['Prob_Lulus']
+                    # Adjust probabilities based on department
+                    if current_jurusan == "Teknik Informatika":
+                        df_filtered_valid['Prob_Lulus'] = df_filtered_valid['IPK'].apply(lambda x: 90.0 if float(x) >= 2.50 else 20.0)
+                    else:
+                        df_filtered_valid['Prob_Lulus'] = df_filtered_valid['IPK'].apply(lambda x: 85.0 if float(x) >= 2.50 else 15.0)
+                        
+                    df_filtered_valid['Prob_Tidak_Lulus'] = 100.0 - df_filtered_valid['Prob_Lulus']
 
-                st.markdown("#### 🔮 Prediksi Mahasiswa")
-                st.dataframe(df_filtered[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
+                    st.markdown("#### 🔮 Prediksi Mahasiswa (Hanya yang memiliki NIM valid)")
+                    st.dataframe(df_filtered_valid[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
 
-                st.markdown("#### 📊 Rata-rata Probabilitas")
-                avg_lulus = df_filtered['Prob_Lulus'].mean()
-                avg_tidak = df_filtered['Prob_Tidak_Lulus'].mean()
+                    st.markdown("#### 📊 Rata-rata Probabilitas")
+                    avg_lulus = df_filtered_valid['Prob_Lulus'].mean()
+                    avg_tidak = df_filtered_valid['Prob_Tidak_Lulus'].mean()
 
-                fig, ax = plt.subplots()
-                ax.pie([avg_lulus, avg_tidak], 
-                       labels=["Lulus", "Tidak Lulus"], 
-                       autopct='%1.1f%%', 
-                       colors=["#4CAF50", "#FF0013"])
-                ax.axis('equal')
-                st.pyplot(fig)
+                    fig, ax = plt.subplots()
+                    ax.pie([avg_lulus, avg_tidak], 
+                           labels=["Lulus", "Tidak Lulus"], 
+                           autopct='%1.1f%%', 
+                           colors=["#4CAF50", "#FF0013"])
+                    ax.axis('equal')
+                    st.pyplot(fig)
 
-                st.markdown("#### 📈 Statistik IPK")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Rata-rata IPK", f"{df_filtered['IPK'].astype(float).mean():.2f}")
-                with col2:
-                    st.metric("IPK Tertinggi", f"{df_filtered['IPK'].astype(float).max():.2f}")
-                with col3:
-                    st.metric("IPK Terendah", f"{df_filtered['IPK'].astype(float).min():.2f}")
+                    st.markdown("#### 📈 Statistik IPK")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Rata-rata IPK", f"{df_filtered_valid['IPK'].astype(float).mean():.2f}")
+                    with col2:
+                        st.metric("IPK Tertinggi", f"{df_filtered_valid['IPK'].astype(float).max():.2f}")
+                    with col3:
+                        st.metric("IPK Terendah", f"{df_filtered_valid['IPK'].astype(float).min():.2f}")
 
-                fig, ax = plt.subplots()
-                ax.hist(df_filtered["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
-                ax.set_title(f"Distribusi IPK Mahasiswa {current_jurusan}")
-                ax.set_xlabel("IPK")
-                ax.set_ylabel("Jumlah Mahasiswa")
-                st.pyplot(fig)
-                
-                # Additional statistics
-                st.markdown("#### 📝 Statistik Tambahan")
-                st.write(f"- Jumlah mahasiswa: {len(df_filtered)}")
-                st.write(f"- Persentase prediksi lulus: {(len(df_filtered[df_filtered['Prediksi'] == 'Lulus']) / len(df_filtered)) * 100:.1f}%")
+                    fig, ax = plt.subplots()
+                    ax.hist(df_filtered_valid["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
+                    ax.set_title(f"Distribusi IPK Mahasiswa {current_jurusan}")
+                    ax.set_xlabel("IPK")
+                    ax.set_ylabel("Jumlah Mahasiswa")
+                    st.pyplot(fig)
+                    
+                    # Additional statistics
+                    st.markdown("#### 📝 Statistik Tambahan")
+                    st.write(f"- Jumlah mahasiswa: {len(df_filtered)}")
+                    st.write(f"- Jumlah dengan NIM valid: {len(df_filtered_valid)}")
+                    st.write(f"- Persentase prediksi lulus: {(len(df_filtered_valid[df_filtered_valid['Prediksi'] == 'Lulus']) / len(df_filtered_valid)) * 100:.1f}%")
+                else:
+                    st.warning("Tidak ada mahasiswa dengan NIM yang valid untuk diprediksi")
                 
             else:
                 st.warning(f"⚠ Tidak ada data mahasiswa untuk jurusan {current_jurusan}.")
@@ -238,44 +253,54 @@ elif st.session_state["user_role"] == "Admin":
                     st.stop()
 
                 if not df_mahasiswa.empty:
+                    # Validasi NIM
+                    if 'NIM' not in df_mahasiswa.columns or df_mahasiswa['NIM'].isnull().any():
+                        st.warning("⚠ File yang diupload mengandung data tanpa NIM atau format NIM tidak valid")
+                    
                     st.markdown("### 🎓 Seluruh Data Mahasiswa")
                     st.dataframe(df_mahasiswa.astype(str))  # Convert all columns to string for display
 
-                    # Proses prediksi kelulusan
-                    df_mahasiswa['Prediksi'] = df_mahasiswa['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
-                    df_mahasiswa['Prob_Lulus'] = df_mahasiswa.apply(
-                        lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and float(row['IPK']) >= 2.50 else
-                                    85.0 if float(row['IPK']) >= 2.50 else
-                                    20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0,
-                        axis=1
-                    )
-                    df_mahasiswa['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa['Prob_Lulus']
+                    # Hanya proses prediksi untuk mahasiswa dengan NIM valid
+                    df_mahasiswa_valid = df_mahasiswa[df_mahasiswa['NIM'].notna() & (df_mahasiswa['NIM'] != '')]
+                    
+                    if not df_mahasiswa_valid.empty:
+                        # Proses prediksi kelulusan
+                        df_mahasiswa_valid['Prediksi'] = df_mahasiswa_valid['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
+                        df_mahasiswa_valid['Prob_Lulus'] = df_mahasiswa_valid.apply(
+                            lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and float(row['IPK']) >= 2.50 else
+                                        85.0 if float(row['IPK']) >= 2.50 else
+                                        20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0,
+                            axis=1
+                        )
+                        df_mahasiswa_valid['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa_valid['Prob_Lulus']
 
-                    st.markdown("#### 🔮 Prediksi Mahasiswa")
-                    st.dataframe(df_mahasiswa[['Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
+                        st.markdown("#### 🔮 Prediksi Mahasiswa (Hanya yang memiliki NIM valid)")
+                        st.dataframe(df_mahasiswa_valid[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
 
-                    # Visualisasi rata-rata probabilitas
-                    st.markdown("#### 📊 Rata-rata Probabilitas")
-                    avg_lulus = df_mahasiswa['Prob_Lulus'].mean()
-                    avg_tidak = df_mahasiswa['Prob_Tidak_Lulus'].mean()
+                        # Visualisasi rata-rata probabilitas
+                        st.markdown("#### 📊 Rata-rata Probabilitas")
+                        avg_lulus = df_mahasiswa_valid['Prob_Lulus'].mean()
+                        avg_tidak = df_mahasiswa_valid['Prob_Tidak_Lulus'].mean()
 
-                    fig, ax = plt.subplots()
-                    ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
-                    ax.axis('equal')
-                    st.pyplot(fig)
+                        fig, ax = plt.subplots()
+                        ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                        ax.axis('equal')
+                        st.pyplot(fig)
 
-                    # Statistik IPK
-                    st.markdown("#### 📈 Statistik IPK")
-                    st.write(f"- Rata-rata IPK: {df_mahasiswa['IPK'].astype(float).mean():.2f}")
-                    st.write(f"- IPK Tertinggi: {df_mahasiswa['IPK'].astype(float).max():.2f}")
-                    st.write(f"- IPK Terendah: {df_mahasiswa['IPK'].astype(float).min():.2f}")
+                        # Statistik IPK
+                        st.markdown("#### 📈 Statistik IPK")
+                        st.write(f"- Rata-rata IPK: {df_mahasiswa_valid['IPK'].astype(float).mean():.2f}")
+                        st.write(f"- IPK Tertinggi: {df_mahasiswa_valid['IPK'].astype(float).max():.2f}")
+                        st.write(f"- IPK Terendah: {df_mahasiswa_valid['IPK'].astype(float).min():.2f}")
 
-                    fig, ax = plt.subplots()
-                    ax.hist(df_mahasiswa["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
-                    ax.set_title("Distribusi IPK Mahasiswa")
-                    ax.set_xlabel("IPK")
-                    ax.set_ylabel("Jumlah Mahasiswa")
-                    st.pyplot(fig)
+                        fig, ax = plt.subplots()
+                        ax.hist(df_mahasiswa_valid["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
+                        ax.set_title("Distribusi IPK Mahasiswa")
+                        ax.set_xlabel("IPK")
+                        ax.set_ylabel("Jumlah Mahasiswa")
+                        st.pyplot(fig)
+                    else:
+                        st.warning("Tidak ada mahasiswa dengan NIM yang valid untuk diprediksi")
 
                 else:
                     st.warning("⚠ File kosong atau tidak mengandung data mahasiswa.")
@@ -314,6 +339,21 @@ elif st.session_state["user_role"] == "Admin":
                     # Generate NIM acak (8 digit) as string
                     nim = str(random.randint(10000000, 99999999))
                     
+                    # Path file Excel
+                    excel_path = "data/Data_Mahasiswa.xlsx"
+                    
+                    # Pastikan folder 'data/' ada
+                    os.makedirs("data", exist_ok=True)
+                    
+                    # Cek apakah file sudah ada
+                    if os.path.exists(excel_path):
+                        # Jika file ada, baca data lama dan pastikan NIM unik
+                        existing_data = pd.read_excel(excel_path, engine="openpyxl", dtype={'NIM': str})
+                        while nim in existing_data['NIM'].values:
+                            nim = str(random.randint(10000000, 99999999))
+                    else:
+                        existing_data = pd.DataFrame()
+                    
                     new_data = pd.DataFrame([{
                         "NIM": nim,
                         "Nama Mahasiswa": nama,
@@ -328,26 +368,13 @@ elif st.session_state["user_role"] == "Admin":
                         "CPL": float(cpl),
                         "Waktu Penyelesaian": float(waktu_penyelesaian), 
                     }])
-                
-                    # Path file Excel
-                    excel_path = "data/Data_Mahasiswa.xlsx"
                     
-                    # Pastikan folder 'data/' ada
-                    os.makedirs("data", exist_ok=True)
-                    
-                    # Cek apakah file sudah ada
-                    if os.path.exists(excel_path):
-                        # Jika file ada, baca data lama dan gabungkan dengan data baru
-                        existing_data = pd.read_excel(excel_path, engine="openpyxl", dtype={'NIM': str})
-                        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-                    else:
-                        # Jika file tidak ada, gunakan data baru
-                        updated_data = new_data
+                    updated_data = pd.concat([existing_data, new_data], ignore_index=True)
 
                     # Simpan ke file Excel
                     try:
                         updated_data.to_excel(excel_path, index=False, engine="openpyxl")
-                        st.success(f"✅ Data mahasiswa '{nama}' berhasil disimpan di {excel_path}!")
+                        st.success(f"✅ Data mahasiswa '{nama}' dengan NIM {nim} berhasil disimpan di {excel_path}!")
                         
                         # Tampilkan data terbaru (opsional)
                         st.dataframe(updated_data.astype(str))
@@ -380,31 +407,38 @@ elif st.session_state["user_role"] == "Admin":
             df_mahasiswa = pd.read_excel("data/Data_Mahasiswa.xlsx", engine='openpyxl', dtype={'NIM': str})
             
             if not df_mahasiswa.empty:
+                # Hanya tampilkan data dengan NIM valid
+                df_mahasiswa_valid = df_mahasiswa[df_mahasiswa['NIM'].notna() & (df_mahasiswa['NIM'] != '')]
+                
                 # Statistik umum
                 st.markdown("### 📈 Statistik Umum")
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Total Mahasiswa", len(df_mahasiswa))
+                    st.metric("Dengan NIM Valid", len(df_mahasiswa_valid))
                 with col2:
-                    st.metric("Rata-rata IPK", f"{df_mahasiswa['IPK'].astype(float).mean():.2f}")
+                    st.metric("Rata-rata IPK", f"{df_mahasiswa_valid['IPK'].astype(float).mean():.2f}" if not df_mahasiswa_valid.empty else "N/A")
                 with col3:
-                    st.metric("IPK Tertinggi", f"{df_mahasiswa['IPK'].astype(float).max():.2f}")
+                    st.metric("IPK Tertinggi", f"{df_mahasiswa_valid['IPK'].astype(float).max():.2f}" if not df_mahasiswa_valid.empty else "N/A")
                 
-                # Distribusi Jurusan
-                st.markdown("### 🏫 Distribusi Jurusan")
-                jurusan_counts = df_mahasiswa['Jurusan'].value_counts()
-                fig1, ax1 = plt.subplots()
-                ax1.pie(jurusan_counts, labels=jurusan_counts.index, autopct='%1.1f%%', startangle=90)
-                ax1.axis('equal')
-                st.pyplot(fig1)
-                
-                # Distribusi IPK
-                st.markdown("### 📊 Distribusi IPK")
-                fig2, ax2 = plt.subplots()
-                ax2.hist(df_mahasiswa['IPK'].astype(float), bins=10, color='skyblue', edgecolor='black')
-                ax2.set_xlabel('IPK')
-                ax2.set_ylabel('Jumlah Mahasiswa')
-                st.pyplot(fig2)
+                if not df_mahasiswa_valid.empty:
+                    # Distribusi Jurusan
+                    st.markdown("### 🏫 Distribusi Jurusan (Hanya dengan NIM valid)")
+                    jurusan_counts = df_mahasiswa_valid['Jurusan'].value_counts()
+                    fig1, ax1 = plt.subplots()
+                    ax1.pie(jurusan_counts, labels=jurusan_counts.index, autopct='%1.1f%%', startangle=90)
+                    ax1.axis('equal')
+                    st.pyplot(fig1)
+                    
+                    # Distribusi IPK
+                    st.markdown("### 📊 Distribusi IPK (Hanya dengan NIM valid)")
+                    fig2, ax2 = plt.subplots()
+                    ax2.hist(df_mahasiswa_valid['IPK'].astype(float), bins=10, color='skyblue', edgecolor='black')
+                    ax2.set_xlabel('IPK')
+                    ax2.set_ylabel('Jumlah Mahasiswa')
+                    st.pyplot(fig2)
+                else:
+                    st.warning("Tidak ada data dengan NIM yang valid untuk ditampilkan statistiknya")
                 
             else:
                 st.warning("Database mahasiswa kosong. Silakan tambah data terlebih dahulu.")
