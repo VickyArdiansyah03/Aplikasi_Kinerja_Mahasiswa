@@ -296,12 +296,14 @@ elif st.session_state["user_role"] == "Admin":
                 jurusan = st.selectbox("Jurusan", ["Teknik Informatika", "Sistem Informasi", "Akuntansi", "Teknik Elektro", "Manajemen"], key="jurusan")
                 ipk = st.number_input("IPK", min_value=0.0, max_value=4.0, step=0.01, key="ipk")
                 sks = st.number_input("SKS", min_value=1.0, max_value=200.0, step=10.0, key="sks")
+                cpl = st.number_input("CPL", min_value=1.0, max_value=100.0, step=1.0, key="cpl")
                 
             with col2:
                 nilai_matkul = st.number_input("Nilai Mata Kuliah", min_value=0.01, max_value=100.00, step=0.10, key="nilai")
                 kehadiran = st.number_input("Jumlah Kehadiran", min_value=1.0, max_value=20.0, step=1.0, key="kehadiran")
                 tugas = st.number_input("Jumlah Tugas", min_value=1.0, max_value=20.0, step=1.0, key="tugas")
                 penilaian_dosen = st.number_input("Skor Penilaian Dosen", min_value=1.0, max_value=5.00, step=0.1, key="penilaian")
+                cpmk = st.number_input("CPMK", min_value=1.0, max_value=100.0, step=1.0, key="cpmk")
                 
             waktu_penyelesaian = st.number_input("Waktu Penyelesaian", min_value=1.0, max_value=5.0, step=1.0, key="waktu")
             
@@ -322,6 +324,8 @@ elif st.session_state["user_role"] == "Admin":
                         "Jumlah Kehadiran": kehadiran,
                         "Jumlah Tugas": tugas,
                         "Skor Penilaian Dosen": penilaian_dosen,
+                        "CPMK": cpmk,
+                        "CPL": cpl,
                         "Waktu Penyelesaian": waktu_penyelesaian, 
                     }])
                 
