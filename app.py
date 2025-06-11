@@ -224,16 +224,23 @@ elif st.session_state["user_role"] == "Dosen":
         new_nilai = st.number_input("Masukkan IPK baru:", min_value=0.00, max_value=4.00, value=float(data_terpilih['IPK']), step=0.01)
 
         if st.button("Simpan Perubahan"):
+            # Bulatkan IPK ke 2 angka desimal
+            new_nilai = round(new_nilai, 2)
+
             # Update IPK di dataframe
             df_mahasiswa.loc[df_mahasiswa['NIM'] == selected_nim, 'IPK'] = new_nilai
 
             # Tampilkan hasil
-            st.success(f"Data mahasiswa dengan NIM {selected_nim} telah diperbarui dengan IPK {new_nilai}")
+            st.success(f"Data mahasiswa dengan NIM {selected_nim} telah diperbarui dengan IPK {new_nilai:.2f}")
+
+            # BUlatkan semua nilai IPK di dataframe
+            df_mahasiswa['IPK'] = df_mahasiswa['IPK'].astype(float).round(2)
+
             st.dataframe(df_mahasiswa.astype(str))
 
             # Simpan hasil edit ke file baru
             output_filename = f"data_mahasiswa_terupdate.xlsx"
-            df_mahasiswa.to_excel(output_filename, index=False, engine='openpyxl')
+            df_mahasiswa.to_excel(output_filename)
             with open(output_filename, "rb") as f:
                 st.download_button("⬇️ Download Data Terupdate", f, file_name=output_filename)
 
