@@ -112,6 +112,11 @@ elif st.session_state["user_role"] == "Mahasiswa":
 elif st.session_state["user_role"] == "Dosen":
     st.sidebar.markdown("### 🔑 Akun Dosen")
     st.sidebar.write(f"👤 {st.session_state['user_name']}")
+    menu_option = st.sidebar.radio(
+        "Pilih opsi:",
+        ["📤 Upload Data", "✏️ Edit Nilai Mahasiswa", "###"],
+        index=0
+    )
     if st.sidebar.button("🚪 Logout"):
         logout()
         st.rerun()
@@ -129,93 +134,108 @@ elif st.session_state["user_role"] == "Dosen":
     
     current_jurusan = jurusan_mapping.get(st.session_state["user_name"], "Unknown")
     st.markdown(f"### 🏫 Jurusan Anda: {current_jurusan}")
-    
-    st.markdown("Silakan upload file data mahasiswa (.xlsx atau .csv):")
-    uploaded_file = st.file_uploader("Upload file", type=["xlsx", "csv"])
 
-    if uploaded_file is not None:
-        try:
-            # Check file extension
-            if uploaded_file.name.endswith('.xlsx'):
-                df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl', dtype={'NIM': str})
-            elif uploaded_file.name.endswith('.csv'):
-                df_mahasiswa = pd.read_csv(uploaded_file, dtype={'NIM': str})
-            else:
-                st.error("Format file tidak didukung. Harap upload file Excel (.xlsx) atau CSV (.csv)")
-                st.stop()
+    if menu_option == "📤 Upload Data":    
+        st.markdown("Silakan upload file data mahasiswa (.xlsx atau .csv):")
+        uploaded_file = st.file_uploader("Upload file", type=["xlsx", "csv"], key="uploader")
 
-            # Filter data berdasarkan jurusan dosen
-            df_filtered = df_mahasiswa[df_mahasiswa["Jurusan"] == current_jurusan]
-
-            if not df_filtered.empty:
-                # Validasi NIM sebelum menampilkan data
-                if 'NIM' not in df_filtered.columns or df_filtered['NIM'].isnull().any():
-                    st.warning("⚠ Beberapa data mahasiswa tidak memiliki NIM yang valid")
-                
-                st.markdown(f"### 🎓 Data Mahasiswa Jurusan {current_jurusan}")
-                st.dataframe(df_filtered.astype(str))  # Convert all columns to string for display
-
-                # Hanya proses prediksi untuk mahasiswa dengan NIM valid
-                df_filtered_valid = df_filtered[df_filtered['NIM'].notna() & (df_filtered['NIM'] != '')]
-                
-                if not df_filtered_valid.empty:
-                    # Proses prediksi kelulusan
-                    df_filtered_valid['Prediksi'] = df_filtered_valid['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
-                    
-                    # Adjust probabilities based on department
-                    if current_jurusan == "Teknik Informatika":
-                        df_filtered_valid['Prob_Lulus'] = df_filtered_valid['IPK'].apply(lambda x: 90.0 if float(x) >= 2.50 else 20.0)
-                    else:
-                        df_filtered_valid['Prob_Lulus'] = df_filtered_valid['IPK'].apply(lambda x: 85.0 if float(x) >= 2.50 else 15.0)
-                        
-                    df_filtered_valid['Prob_Tidak_Lulus'] = 100.0 - df_filtered_valid['Prob_Lulus']
-
-                    st.markdown("#### 🔮 Prediksi Mahasiswa (Hanya yang memiliki NIM valid)")
-                    st.dataframe(df_filtered_valid[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
-
-                    st.markdown("#### 📊 Rata-rata Probabilitas")
-                    avg_lulus = df_filtered_valid['Prob_Lulus'].mean()
-                    avg_tidak = df_filtered_valid['Prob_Tidak_Lulus'].mean()
-
-                    fig, ax = plt.subplots()
-                    ax.pie([avg_lulus, avg_tidak], 
-                           labels=["Lulus", "Tidak Lulus"], 
-                           autopct='%1.1f%%', 
-                           colors=["#4CAF50", "#FF0013"])
-                    ax.axis('equal')
-                    st.pyplot(fig)
-
-                    st.markdown("#### 📈 Statistik IPK")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Rata-rata IPK", f"{df_filtered_valid['IPK'].astype(float).mean():.2f}")
-                    with col2:
-                        st.metric("IPK Tertinggi", f"{df_filtered_valid['IPK'].astype(float).max():.2f}")
-                    with col3:
-                        st.metric("IPK Terendah", f"{df_filtered_valid['IPK'].astype(float).min():.2f}")
-
-                    fig, ax = plt.subplots()
-                    ax.hist(df_filtered_valid["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
-                    ax.set_title(f"Distribusi IPK Mahasiswa {current_jurusan}")
-                    ax.set_xlabel("IPK")
-                    ax.set_ylabel("Jumlah Mahasiswa")
-                    st.pyplot(fig)
-                    
-                    # Additional statistics
-                    st.markdown("#### 📝 Statistik Tambahan")
-                    st.write(f"- Jumlah mahasiswa: {len(df_filtered)}")
-                    st.write(f"- Jumlah dengan NIM valid: {len(df_filtered_valid)}")
-                    st.write(f"- Persentase prediksi lulus: {(len(df_filtered_valid[df_filtered_valid['Prediksi'] == 'Lulus']) / len(df_filtered_valid)) * 100:.1f}%")
+        if uploaded_file is not None:
+            try:
+                # Check file extension
+                if uploaded_file.name.endswith('.xlsx'):
+                    df_mahasiswa = pd.read_excel(uploaded_file, engine='openpyxl', dtype={'NIM': str})
+                elif uploaded_file.name.endswith('.csv'):
+                    df_mahasiswa = pd.read_csv(uploaded_file, dtype={'NIM': str})
                 else:
-                    st.warning("Tidak ada mahasiswa dengan NIM yang valid untuk diprediksi")
-                
-            else:
-                st.warning(f"⚠ Tidak ada data mahasiswa untuk jurusan {current_jurusan}.")
+                    st.error("Format file tidak didukung. Harap upload file Excel (.xlsx) atau CSV (.csv)")
+                    st.stop()
 
-        except Exception as e:
-            st.error(f"❌ Gagal membaca file: {e}")
-    else:
-        st.info("⬆ Silakan upload file Excel (.xlsx) atau CSV (.csv) terlebih dahulu untuk melihat data.")
+                if not df_mahasiswa.empty:
+                    # Validasi NIM
+                    if 'NIM' not in df_mahasiswa.columns or df_mahasiswa['NIM'].isnull().any():
+                        st.warning("⚠ File yang diupload mengandung data tanpa NIM atau format NIM tidak valid")
+                    
+                    st.markdown("### 🎓 Seluruh Data Mahasiswa")
+                    st.dataframe(df_mahasiswa.astype(str))  # Convert all columns to string for display
+
+                    # Hanya proses prediksi untuk mahasiswa dengan NIM valid
+                    df_mahasiswa_valid = df_mahasiswa[df_mahasiswa['NIM'].notna() & (df_mahasiswa['NIM'] != '')]
+                    
+                    if not df_mahasiswa_valid.empty:
+                        # Proses prediksi kelulusan
+                        df_mahasiswa_valid['Prediksi'] = df_mahasiswa_valid['IPK'].apply(lambda x: "Lulus" if float(x) >= 2.50 else "Tidak Lulus")
+                        df_mahasiswa_valid['Prob_Lulus'] = df_mahasiswa_valid.apply(
+                            lambda row: 90.0 if row['Jurusan'] == "Teknik Informatika" and float(row['IPK']) >= 2.50 else
+                                        85.0 if float(row['IPK']) >= 2.50 else
+                                        20.0 if row['Jurusan'] == "Teknik Informatika" else 15.0,
+                            axis=1
+                        )
+                        df_mahasiswa_valid['Prob_Tidak_Lulus'] = 100.0 - df_mahasiswa_valid['Prob_Lulus']
+
+                        st.markdown("#### 🔮 Prediksi Mahasiswa (Hanya yang memiliki NIM valid)")
+                        st.dataframe(df_mahasiswa_valid[['NIM', 'Nama Mahasiswa', 'Jurusan', 'IPK', 'Prediksi', 'Prob_Lulus', 'Prob_Tidak_Lulus']].astype(str))
+
+                        # Visualisasi rata-rata probabilitas
+                        st.markdown("#### 📊 Rata-rata Probabilitas")
+                        avg_lulus = df_mahasiswa_valid['Prob_Lulus'].mean()
+                        avg_tidak = df_mahasiswa_valid['Prob_Tidak_Lulus'].mean()
+
+                        fig, ax = plt.subplots()
+                        ax.pie([avg_lulus, avg_tidak], labels=["Lulus", "Tidak Lulus"], autopct='%1.1f%%', colors=["#4CAF50", "#FF0013"])
+                        ax.axis('equal')
+                        st.pyplot(fig)
+
+                        # Statistik IPK
+                        st.markdown("#### 📈 Statistik IPK")
+                        st.write(f"- Rata-rata IPK: {df_mahasiswa_valid['IPK'].astype(float).mean():.2f}")
+                        st.write(f"- IPK Tertinggi: {df_mahasiswa_valid['IPK'].astype(float).max():.2f}")
+                        st.write(f"- IPK Terendah: {df_mahasiswa_valid['IPK'].astype(float).min():.2f}")
+
+                        fig, ax = plt.subplots()
+                        ax.hist(df_mahasiswa_valid["IPK"].astype(float), bins=10, color="#4CAF50", edgecolor="black")
+                        ax.set_title("Distribusi IPK Mahasiswa")
+                        ax.set_xlabel("IPK")
+                        ax.set_ylabel("Jumlah Mahasiswa")
+                        st.pyplot(fig)
+                    else:
+                        st.warning("Tidak ada mahasiswa dengan NIM yang valid untuk diprediksi")
+
+                else:
+                    st.warning("⚠ File kosong atau tidak mengandung data mahasiswa.")
+
+            except Exception as e:
+                st.error(f"❌ Gagal membaca file: {e}")
+        else:
+            st.info("⬆ Silakan upload file Excel (.xlsx) atau CSV (.csv) terlebih dahulu untuk melihat data.")
+    
+    elif menu_option == "✏️ Edit Nilai Mahasiswa":
+        st.markdown("✏️ Edit Nilai Mahasiswa")
+
+        # Edit mahasiswa berdasarkan NIM
+        daftar_nim = df_mahasiswa['NIM'].dropna().unique().tolist()
+        selected_nim = st.selectbox("Pilih NIM Mahasiswa:", daftar_nim)
+
+        # Tampil data mahasiswa
+        data_terpilih = df_mahasiswa[df_mahasiswa['NIM'] == selected_nim].iloc[0]
+        st.write("Data Mahasiswa")
+        st.write(data_terpilih)
+
+        # From edit mahasiswa
+        new_nilai = st.number_input("Masukkan IPK baru:", min_value=0.00, max_value=4.00, value=float(data_terpilih['IPK']), step=0.01)
+
+        if st.button("Simpan Perubahan"):
+            # Update IPK di dataframe
+            df_mahasiswa.loc[df_mahasiswa['NIM'] == selected_nim, 'IPK'] = new_nilai
+
+            # Tampilkan hasil
+            st.success(f"Data mahasiswa dengan NIM {selected_nim} telah diperbarui dengan IPK {new_nilai}")
+            st.dataframe(df_mahasiswa.astype(str))
+
+            # Simpan hasil edit ke file baru
+            output_filename = f"data_mahasiswa_terupdate.xlsx"
+            df_mahasiswa.to_excel(output_filename, index=False, engine='openpyxl')
+            with open(output_filename, "rb") as f:
+                st.download_button("⬇️ Download Data Terupdate", f, file_name=output_filename)
 
 # ======================= HALAMAN ADMIN =======================
 elif st.session_state["user_role"] == "Admin":
