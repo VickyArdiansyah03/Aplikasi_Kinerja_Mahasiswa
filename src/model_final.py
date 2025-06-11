@@ -27,7 +27,7 @@ def preprocess_data(df):
 
 if __name__ == '__main__':
     data_path = "data/Data_Mahasiswa_Nama_NIM_Fix.xlsx"
-    model_save_path = "models/random_forest_model.pkl"
+    model_save_path = "models/random_forest_model1.pkl"
 
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"File dataset tidak ditemukan: {data_path}")
