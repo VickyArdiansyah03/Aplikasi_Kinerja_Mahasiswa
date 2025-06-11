@@ -367,7 +367,7 @@ elif st.session_state["user_role"] == "Admin":
                     nim = str(random.randint(10000000, 99999999))
                     
                     # Path file Excel
-                    excel_path = "data/Data_Mahasiswa.xlsx"
+                    excel_path = "data/Data_Mahasiswa_Nama_NIM_Fix.xlsx"
                     
                     # Pastikan folder 'data/' ada
                     os.makedirs("data", exist_ok=True)
@@ -431,7 +431,7 @@ elif st.session_state["user_role"] == "Admin":
         st.markdown("## 📊 Statistik Data Mahasiswa")
         
         try:
-            df_mahasiswa = pd.read_excel("data/Data_Mahasiswa.xlsx", engine='openpyxl', dtype={'NIM': str})
+            df_mahasiswa = pd.read_excel("data/Data_Mahasiswa_Nama_NIM_Fix.xlsx", engine='openpyxl', dtype={'NIM': str})
             
             if not df_mahasiswa.empty:
                 # Hanya tampilkan data dengan NIM valid
