@@ -41,7 +41,7 @@ if __name__ == '__main__':
     df["Keterangan"] = df.apply(lambda row: "Lulus" if row["IPK"] >= 2.50 and row["Jumlah SKS"] >= 110 else "Tidak Lulus", axis=1)
     processed_df = preprocess_data(df)
     
-    fitur_kolom = ["IPK", "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Penilaian Dosen", "Waktu Penyelesaian"]
+    fitur_kolom = ["IPK", "Jumlah SKS", "Nilai Mata Kuliah", "Jumlah Kehadiran", "Jumlah Tugas", "Skor Evaluasi Dosen oleh Mahasiswa", "Lama Studi (semester)"]
     X = processed_df[fitur_kolom]
     y = processed_df["Keterangan"].map({"Lulus": 1, "Tidak Lulus": 0})
     
