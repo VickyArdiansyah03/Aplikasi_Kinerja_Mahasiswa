@@ -11,7 +11,7 @@ st.set_page_config(page_title="Aplikasi Prediksi Kinerja Mahasiswa", layout="cen
 # ======================= LOAD DATA MAHASISWA & DOSEN =======================
 def load_mahasiswa_data():
     try:
-        df = pd.read_excel(r"data/Data_Mahasiswa.xlsx", dtype={'NIM': str})  # Ensure NIM is read as string
+        df = pd.read_excel(r"data/Data_Mahasiswa_Nama_NIM_Fix.xlsx", dtype={'NIM': str})  # Ensure NIM is read as string
         return df
     except Exception as e:
         st.error(f"Gagal memuat data mahasiswa: {e}")
