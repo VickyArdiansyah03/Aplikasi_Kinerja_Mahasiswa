@@ -190,49 +190,38 @@ def create_batch_summary_charts(df_results):
     if len(valid_results) == 0:
         return None, None, None
     
-    try:
-        # Chart 1: Distribusi Prediksi
-        prediksi_counts = valid_results['Prediksi'].value_counts()
-        
-        fig_pie = px.pie(
-            values=prediksi_counts.values,
-            names=prediksi_counts.index,
-            title="Distribusi Prediksi Kelulusan",
-            color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
-        )
-        
-        # Chart 2: Distribusi per Jurusan
-        jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
-        
-        # Pastikan kolom 'LULUS' dan 'TIDAK LULUS' ada
-        for col in ['LULUS', 'TIDAK LULUS']:
-            if col not in jurusan_prediksi.columns:
-                jurusan_prediksi[col] = 0
-        
-        fig_bar = px.bar(
-            jurusan_prediksi.reset_index(),
-            x='Jurusan',
-            y=['LULUS', 'TIDAK LULUS'],
-            title="Prediksi Kelulusan per Jurusan",
-            color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'},
-            barmode='group'
-        )
-        fig_bar.update_xaxes(tickangle=45)
-        
-        # Chart 3: Distribusi Confidence
-        fig_hist = px.histogram(
-            valid_results,
-            x='Confidence',
-            nbins=20,
-            title="Distribusi Confidence Score",
-            labels={'Confidence': 'Confidence Score', 'count': 'Jumlah Mahasiswa'}
-        )
-        
-        return fig_pie, fig_bar, fig_hist
+    # Chart 1: Distribusi Prediksi
+    prediksi_counts = valid_results['Prediksi'].value_counts()
     
-    except Exception as e:
-        st.error(f"Error membuat visualisasi: {str(e)}")
-        return None, None, None
+    fig_pie = px.pie(
+        values=prediksi_counts.values,
+        names=prediksi_counts.index,
+        title="Distribusi Prediksi Kelulusan",
+        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
+    )
+    
+    # Chart 2: Distribusi per Jurusan
+    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
+    
+    fig_bar = px.bar(
+        jurusan_prediksi.reset_index(),
+        x='Jurusan',
+        y=['LULUS', 'TIDAK LULUS'],
+        title="Prediksi Kelulusan per Jurusan",
+        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
+    )
+    fig_bar.update_xaxes(tickangle=45)
+    
+    # Chart 3: Distribusi Confidence
+    fig_hist = px.histogram(
+        valid_results,
+        x='Confidence',
+        nbins=20,
+        title="Distribusi Confidence Score",
+        labels={'Confidence': 'Confidence Score', 'count': 'Jumlah Mahasiswa'}
+    )
+    
+    return fig_pie, fig_bar, fig_hist
 
 def create_sample_template():
     """Buat template Excel untuk batch upload"""
@@ -337,7 +326,7 @@ def render_login_page():
     
     with col1:
         st.markdown("""
-        **👨‍🎓 Mahasiswa**
+        *👨‍🎓 Mahasiswa*
         - Prediksi kelulusan pribadi
         - Melihat profil akademik
         - Mendapat rekomendasi
@@ -345,20 +334,20 @@ def render_login_page():
     
     with col2:
         st.markdown("""
-        **👨‍🏫 Dosen**
+        *👨‍🏫 Dosen*
         - Prediksi untuk mahasiswa
         - Analisis mendalam
         - Tools evaluasi
-        - **Batch upload Excel**
+        - *Batch upload Excel*
         """)
     
     with col3:
         st.markdown("""
-        **👨‍💼 Admin**
+        *👨‍💼 Admin*
         - Akses penuh sistem
         - Kelola data
         - Laporan statistik
-        - **Batch upload Excel**
+        - *Batch upload Excel*
         """)
 
 def render_header():
@@ -367,7 +356,7 @@ def render_header():
     
     with col1:
         st.title("🎓 Sistem Prediksi Kelulusan Mahasiswa")
-        st.caption(f"Selamat datang, **{st.session_state['user_name']}** ({st.session_state['user_role']})")
+        st.caption(f"Selamat datang, *{st.session_state['user_name']}* ({st.session_state['user_role']})")
     
     with col2:
         if st.button("🚪 Logout", type="secondary"):
@@ -438,7 +427,7 @@ def render_batch_upload_interface():
         )
     
     with col2:
-        st.markdown("**Kolom yang diperlukan:**")
+        st.markdown("*Kolom yang diperlukan:*")
         required_columns = [
             "Nama", "NIM", "Jurusan", "IPK", "Jumlah_SKS",
             "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas",
@@ -506,8 +495,8 @@ def render_batch_results():
     error_count = len(results_df[results_df['Error'].notna()])
     
     if len(valid_results) > 0:
-        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS')
-        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS')
+        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS'])
+        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS'])
         avg_confidence = valid_results['Confidence'].mean()
     else:
         lulus_count = tidak_lulus_count = 0
@@ -541,10 +530,6 @@ def render_batch_results():
                 st.plotly_chart(fig_hist, use_container_width=True)
             
             st.plotly_chart(fig_bar, use_container_width=True)
-        else:
-            st.warning("Tidak ada data valid untuk ditampilkan dalam visualisasi")
-    else:
-        st.warning("Tidak ada data valid untuk ditampilkan dalam visualisasi")
     
     # Detailed results
     st.subheader("📋 Hasil Detail")
@@ -563,6 +548,7 @@ def render_batch_results():
             jurusan_filter = st.selectbox(
                 "Filter Jurusan",
                 ["Semua"] + list(valid_results['Jurusan'].unique())
+            )
         else:
             jurusan_filter = "Semua"
     
@@ -608,7 +594,7 @@ def render_batch_results():
         )
     
     # Clear results
-    if st.button("🗑️ Clear Results", type="secondary"):
+    if st.button("🗑 Clear Results", type="secondary"):
         st.session_state["batch_results"] = None
         st.rerun()
 
@@ -698,11 +684,11 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             
             # Tampilkan hasil utama
             if hasil['prediksi'] == 1:
-                st.success("✅ **LULUS**")
+                st.success("✅ *LULUS*")
                 if st.session_state["user_role"] == "Mahasiswa":
                     st.balloons()
             else:
-                st.error("❌ **TIDAK LULUS**")
+                st.error("❌ *TIDAK LULUS*")
             
             # Probabilitas
             col_prob1, col_prob2 = st.columns(2)
@@ -771,7 +757,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             st.subheader("💡 Rekomendasi")
             
             if hasil['prediksi'] == 0:  # Tidak lulus
-                st.warning("**Perlu Perbaikan:**")
+                st.warning("*Perlu Perbaikan:*")
                 recommendations = []
                 
                 if ipk < 3.0:
@@ -791,24 +777,24 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
                 
                 # Rekomendasi khusus Dosen
                 if st.session_state["user_role"] == "Dosen":
-                    st.info("**Rekomendasi untuk Dosen:**")
+                    st.info("*Rekomendasi untuk Dosen:*")
                     st.write("• 🎯 Berikan bimbingan ekstra pada mahasiswa")
                     st.write("• 📞 Lakukan konseling akademik")
                     st.write("• 📋 Monitor progress secara berkala")
             
             else:  # Lulus
-                st.success("**Pertahankan Performa:**")
+                st.success("*Pertahankan Performa:*")
                 st.write("• 🎯 Pertahankan IPK yang baik")
                 st.write("• 📈 Terus tingkatkan engagement di kelas")
                 st.write("• 🏆 Siapkan diri untuk wisuda!")
     
     with col2:
-        st.header("ℹ️ Informasi Data")
+        st.header("ℹ Informasi Data")
         
         # User info
         st.subheader("👤 Info Pengguna:")
-        st.write(f"**Nama:** {st.session_state['user_name']}")
-        st.write(f"**Role:** {st.session_state['user_role']}")
+        st.write(f"*Nama:* {st.session_state['user_name']}")
+        st.write(f"*Role:* {st.session_state['user_role']}")
         
         # Tampilkan data input
         st.subheader("📝 Input Data:")
@@ -824,13 +810,13 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         }
         
         for key, value in input_data.items():
-            st.write(f"**{key}:** {value}")
+            st.write(f"{key}:** {value}")
         
         # Model info
         st.subheader("🤖 Model Info:")
-        st.write("**Algorithm:** Random Forest")
-        st.write("**Features:** 12 fitur")
-        st.write("**Balancing:** SMOTE")
+        st.write("*Algorithm:* Random Forest")
+        st.write("*Features:* 12 fitur")
+        st.write("*Balancing:* SMOTE")
         
         # Feature importance (contoh)
         st.subheader("🔍 Fitur Penting:")
@@ -842,7 +828,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         
         # Admin features
         if role_features["show_admin_features"]:
-            st.subheader("⚙️ Admin Tools:")
+            st.subheader("⚙ Admin Tools:")
             st.write("• Model Statistics")
             st.write("• User Management")
             st.write("• System Logs")
@@ -862,5 +848,5 @@ def main():
         render_prediction_interface()
 
 # Jalankan aplikasi
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
