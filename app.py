@@ -132,6 +132,12 @@ def process_batch_data(df, model, jurusan_mapping):
                     'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                     'NIM': row.get('NIM', f'NIM_{idx}'),
                     'Jurusan': jurusan_name,
+                    'Prediksi': '',
+                    'Confidence': 0,
+                    'Academic_Performance': 0,
+                    'Engagement_Score': 0,
+                    'Study_Efficiency': 0,
+                    'SKS_per_Semester': 0,
                     'Error': f'Jurusan "{jurusan_name}" tidak dikenal'
                 })
                 continue
@@ -153,22 +159,19 @@ def process_batch_data(df, model, jurusan_mapping):
                 kehadiran, tugas, skor_evaluasi, lama_studi
             )
             
-            # Simpan hasil
+            # Simpan hasil dengan format kolom yang konsisten
             results.append({
                 'Index': idx,
                 'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': jurusan_name,
-                'IPK': ipk,
                 'Prediksi': 'LULUS' if hasil['prediksi'] == 1 else 'TIDAK LULUS',
-                'Probabilitas_Lulus': hasil['probabilitas_lulus'],
-                'Probabilitas_Tidak_Lulus': hasil['probabilitas_tidak_lulus'],
                 'Confidence': hasil['confidence'],
                 'Academic_Performance': hasil['academic_performance'],
                 'Engagement_Score': hasil['engagement_score'],
                 'Study_Efficiency': hasil['study_efficiency'],
                 'SKS_per_Semester': hasil['sks_per_semester'],
-                'Error': None
+                'Error': ''
             })
             
         except Exception as e:
@@ -177,6 +180,12 @@ def process_batch_data(df, model, jurusan_mapping):
                 'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': row.get('Jurusan', 'Unknown'),
+                'Prediksi': '',
+                'Confidence': 0,
+                'Academic_Performance': 0,
+                'Engagement_Score': 0,
+                'Study_Efficiency': 0,
+                'SKS_per_Semester': 0,
                 'Error': str(e)
             })
     
@@ -497,8 +506,8 @@ def render_batch_results():
     col1, col2, col3, col4 = st.columns(4)
     
     total_processed = len(results_df)
-    valid_results = results_df[results_df['Error'].isna()]
-    error_count = len(results_df[results_df['Error'].notna()])
+    valid_results = results_df[results_df['Error'] == '']
+    error_count = len(results_df[results_df['Error'] != ''])
     
     if len(valid_results) > 0:
         lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS'])
@@ -562,17 +571,22 @@ def render_batch_results():
     filtered_df = results_df.copy()
     
     if show_filter == "Hanya Lulus":
-        filtered_df = filtered_df[filtered_df['Prediksi'] == 'LULUS']
+        filtered_df = filtered_df[(filtered_df['Prediksi'] == 'LULUS') & (filtered_df['Error'] == '')]
     elif show_filter == "Hanya Tidak Lulus":
-        filtered_df = filtered_df[filtered_df['Prediksi'] == 'TIDAK LULUS']
+        filtered_df = filtered_df[(filtered_df['Prediksi'] == 'TIDAK LULUS') & (filtered_df['Error'] == '')]
     elif show_filter == "Hanya Error":
-        filtered_df = filtered_df[filtered_df['Error'].notna()]
+        filtered_df = filtered_df[filtered_df['Error'] != '']
     
     if jurusan_filter != "Semua":
         filtered_df = filtered_df[filtered_df['Jurusan'] == jurusan_filter]
     
+    # Tentukan kolom yang akan ditampilkan
+    display_columns = ['Nama', 'Jurusan', 'Prediksi', 'Confidence', 
+                      'Academic_Performance', 'Engagement_Score', 
+                      'Study_Efficiency', 'SKS_per_Semester', 'Error']
+    
     # Display filtered results
-    st.dataframe(filtered_df, use_container_width=True)
+    st.dataframe(filtered_df[display_columns], use_container_width=True)
     
     # Download results
     if st.button("📥 Download Hasil ke Excel", type="secondary"):
