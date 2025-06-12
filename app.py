@@ -191,23 +191,29 @@ def create_batch_summary_charts(df_results):
         return None, None, None
     
     # Chart 1: Distribusi Prediksi
-    prediksi_counts = valid_results['Prediksi'].value_counts()
+    prediksi_counts = valid_results['Prediksi'].value_counts().reset_index()
+    prediksi_counts.columns = ['Prediksi', 'Count']
     
     fig_pie = px.pie(
-        values=prediksi_counts.values,
-        names=prediksi_counts.index,
+        prediksi_counts,
+        values='Count',
+        names='Prediksi',
         title="Distribusi Prediksi Kelulusan",
+        color='Prediksi',
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
     )
     
     # Chart 2: Distribusi per Jurusan
-    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
+    # Menggunakan approach yang lebih robust untuk grouped bar chart
+    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().reset_index(name='Count')
     
     fig_bar = px.bar(
-        jurusan_prediksi.reset_index(),
+        jurusan_prediksi,
         x='Jurusan',
-        y=['LULUS', 'TIDAK LULUS'],
+        y='Count',
+        color='Prediksi',
         title="Prediksi Kelulusan per Jurusan",
+        barmode='group',
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
     )
     fig_bar.update_xaxes(tickangle=45)
