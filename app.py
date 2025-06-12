@@ -840,6 +840,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             st.info("💡 Gunakan tab 'Batch Upload' untuk memproses banyak mahasiswa sekaligus")
 
 # Main App
+# Main App
 def main():
     """Fungsi utama aplikasi"""
     if not st.session_state["logged_in"]:
@@ -848,5 +849,5 @@ def main():
         render_prediction_interface()
 
 # Jalankan aplikasi
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
