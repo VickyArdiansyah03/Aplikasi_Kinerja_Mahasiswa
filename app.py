@@ -190,38 +190,49 @@ def create_batch_summary_charts(df_results):
     if len(valid_results) == 0:
         return None, None, None
     
-    # Chart 1: Distribusi Prediksi
-    prediksi_counts = valid_results['Prediksi'].value_counts()
+    try:
+        # Chart 1: Distribusi Prediksi
+        prediksi_counts = valid_results['Prediksi'].value_counts()
+        
+        fig_pie = px.pie(
+            values=prediksi_counts.values,
+            names=prediksi_counts.index,
+            title="Distribusi Prediksi Kelulusan",
+            color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
+        )
+        
+        # Chart 2: Distribusi per Jurusan
+        jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
+        
+        # Pastikan kolom 'LULUS' dan 'TIDAK LULUS' ada
+        for col in ['LULUS', 'TIDAK LULUS']:
+            if col not in jurusan_prediksi.columns:
+                jurusan_prediksi[col] = 0
+        
+        fig_bar = px.bar(
+            jurusan_prediksi.reset_index(),
+            x='Jurusan',
+            y=['LULUS', 'TIDAK LULUS'],
+            title="Prediksi Kelulusan per Jurusan",
+            color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'},
+            barmode='group'
+        )
+        fig_bar.update_xaxes(tickangle=45)
+        
+        # Chart 3: Distribusi Confidence
+        fig_hist = px.histogram(
+            valid_results,
+            x='Confidence',
+            nbins=20,
+            title="Distribusi Confidence Score",
+            labels={'Confidence': 'Confidence Score', 'count': 'Jumlah Mahasiswa'}
+        )
+        
+        return fig_pie, fig_bar, fig_hist
     
-    fig_pie = px.pie(
-        values=prediksi_counts.values,
-        names=prediksi_counts.index,
-        title="Distribusi Prediksi Kelulusan",
-        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
-    )
-    
-    # Chart 2: Distribusi per Jurusan
-    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
-    
-    fig_bar = px.bar(
-        jurusan_prediksi.reset_index(),
-        x='Jurusan',
-        y=['LULUS', 'TIDAK LULUS'],
-        title="Prediksi Kelulusan per Jurusan",
-        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
-    )
-    fig_bar.update_xaxes(tickangle=45)
-    
-    # Chart 3: Distribusi Confidence
-    fig_hist = px.histogram(
-        valid_results,
-        x='Confidence',
-        nbins=20,
-        title="Distribusi Confidence Score",
-        labels={'Confidence': 'Confidence Score', 'count': 'Jumlah Mahasiswa'}
-    )
-    
-    return fig_pie, fig_bar, fig_hist
+    except Exception as e:
+        st.error(f"Error membuat visualisasi: {str(e)}")
+        return None, None, None
 
 def create_sample_template():
     """Buat template Excel untuk batch upload"""
@@ -495,8 +506,8 @@ def render_batch_results():
     error_count = len(results_df[results_df['Error'].notna()])
     
     if len(valid_results) > 0:
-        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS'])
-        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS'])
+        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS')
+        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS')
         avg_confidence = valid_results['Confidence'].mean()
     else:
         lulus_count = tidak_lulus_count = 0
@@ -530,6 +541,10 @@ def render_batch_results():
                 st.plotly_chart(fig_hist, use_container_width=True)
             
             st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("Tidak ada data valid untuk ditampilkan dalam visualisasi")
+    else:
+        st.warning("Tidak ada data valid untuk ditampilkan dalam visualisasi")
     
     # Detailed results
     st.subheader("📋 Hasil Detail")
@@ -548,7 +563,6 @@ def render_batch_results():
             jurusan_filter = st.selectbox(
                 "Filter Jurusan",
                 ["Semua"] + list(valid_results['Jurusan'].unique())
-            )
         else:
             jurusan_filter = "Semua"
     
