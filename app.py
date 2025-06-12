@@ -132,12 +132,6 @@ def process_batch_data(df, model, jurusan_mapping):
                     'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                     'NIM': row.get('NIM', f'NIM_{idx}'),
                     'Jurusan': jurusan_name,
-                    'Prediksi': '',
-                    'Confidence': 0,
-                    'Academic_Performance': 0,
-                    'Engagement_Score': 0,
-                    'Study_Efficiency': 0,
-                    'SKS_per_Semester': 0,
                     'Error': f'Jurusan "{jurusan_name}" tidak dikenal'
                 })
                 continue
@@ -159,19 +153,22 @@ def process_batch_data(df, model, jurusan_mapping):
                 kehadiran, tugas, skor_evaluasi, lama_studi
             )
             
-            # Simpan hasil dengan format kolom yang konsisten
+            # Simpan hasil
             results.append({
                 'Index': idx,
                 'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': jurusan_name,
+                'IPK': ipk,
                 'Prediksi': 'LULUS' if hasil['prediksi'] == 1 else 'TIDAK LULUS',
+                'Probabilitas_Lulus': hasil['probabilitas_lulus'],
+                'Probabilitas_Tidak_Lulus': hasil['probabilitas_tidak_lulus'],
                 'Confidence': hasil['confidence'],
                 'Academic_Performance': hasil['academic_performance'],
                 'Engagement_Score': hasil['engagement_score'],
                 'Study_Efficiency': hasil['study_efficiency'],
                 'SKS_per_Semester': hasil['sks_per_semester'],
-                'Error': ''
+                'Error': None
             })
             
         except Exception as e:
@@ -180,12 +177,6 @@ def process_batch_data(df, model, jurusan_mapping):
                 'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': row.get('Jurusan', 'Unknown'),
-                'Prediksi': '',
-                'Confidence': 0,
-                'Academic_Performance': 0,
-                'Engagement_Score': 0,
-                'Study_Efficiency': 0,
-                'SKS_per_Semester': 0,
                 'Error': str(e)
             })
     
@@ -200,29 +191,23 @@ def create_batch_summary_charts(df_results):
         return None, None, None
     
     # Chart 1: Distribusi Prediksi
-    prediksi_counts = valid_results['Prediksi'].value_counts().reset_index()
-    prediksi_counts.columns = ['Prediksi', 'Count']
+    prediksi_counts = valid_results['Prediksi'].value_counts()
     
     fig_pie = px.pie(
-        prediksi_counts,
-        values='Count',
-        names='Prediksi',
+        values=prediksi_counts.values,
+        names=prediksi_counts.index,
         title="Distribusi Prediksi Kelulusan",
-        color='Prediksi',
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
     )
     
     # Chart 2: Distribusi per Jurusan
-    # Menggunakan approach yang lebih robust untuk grouped bar chart
-    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().reset_index(name='Count')
+    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
     
     fig_bar = px.bar(
-        jurusan_prediksi,
+        jurusan_prediksi.reset_index(),
         x='Jurusan',
-        y='Count',
-        color='Prediksi',
+        y=['LULUS', 'TIDAK LULUS'],
         title="Prediksi Kelulusan per Jurusan",
-        barmode='group',
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
     )
     fig_bar.update_xaxes(tickangle=45)
@@ -500,9 +485,53 @@ def render_batch_results():
     """Render hasil batch prediksi"""
     results_df = st.session_state["batch_results"]
     
-    # Perbaikan: Pastikan kolom Error kosong jika tidak ada error
-    results_df['Error'] = results_df['Error'].fillna('')  # Mengubah None menjadi string kosong
+    st.subheader("📊 Hasil Batch Prediksi")
     
+    # Summary statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_processed = len(results_df)
+    valid_results = results_df[results_df['Error'].isna()]
+    error_count = len(results_df[results_df['Error'].notna()])
+    
+    if len(valid_results) > 0:
+        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS'])
+        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS'])
+        avg_confidence = valid_results['Confidence'].mean()
+    else:
+        lulus_count = tidak_lulus_count = 0
+        avg_confidence = 0
+    
+    with col1:
+        st.metric("Total Diproses", total_processed)
+    
+    with col2:
+        st.metric("Prediksi Lulus", lulus_count, delta=f"{lulus_count/len(valid_results)*100:.1f}%" if len(valid_results) > 0 else "0%")
+    
+    with col3:
+        st.metric("Prediksi Tidak Lulus", tidak_lulus_count, delta=f"{tidak_lulus_count/len(valid_results)*100:.1f}%" if len(valid_results) > 0 else "0%")
+    
+    with col4:
+        st.metric("Avg Confidence", f"{avg_confidence:.1%}" if avg_confidence > 0 else "0%")
+    
+    # Charts
+    if len(valid_results) > 0:
+        st.subheader("📈 Visualisasi Hasil")
+        
+        fig_pie, fig_bar, fig_hist = create_batch_summary_charts(results_df)
+        
+        if fig_pie is not None:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with col2:
+                st.plotly_chart(fig_hist, use_container_width=True)
+            
+            st.plotly_chart(fig_bar, use_container_width=True)
+    
+    # Detailed results
     st.subheader("📋 Hasil Detail")
     
     # Filter options
@@ -515,7 +544,6 @@ def render_batch_results():
         )
     
     with col2:
-        valid_results = results_df[results_df['Error'] == '']
         if len(valid_results) > 0:
             jurusan_filter = st.selectbox(
                 "Filter Jurusan",
@@ -528,37 +556,17 @@ def render_batch_results():
     filtered_df = results_df.copy()
     
     if show_filter == "Hanya Lulus":
-        filtered_df = filtered_df[(filtered_df['Prediksi'] == 'LULUS') & (filtered_df['Error'] == '')]
+        filtered_df = filtered_df[filtered_df['Prediksi'] == 'LULUS']
     elif show_filter == "Hanya Tidak Lulus":
-        filtered_df = filtered_df[(filtered_df['Prediksi'] == 'TIDAK LULUS') & (filtered_df['Error'] == '')]
+        filtered_df = filtered_df[filtered_df['Prediksi'] == 'TIDAK LULUS']
     elif show_filter == "Hanya Error":
-        filtered_df = filtered_df[filtered_df['Error'] != '']
+        filtered_df = filtered_df[filtered_df['Error'].notna()]
     
     if jurusan_filter != "Semua":
         filtered_df = filtered_df[filtered_df['Jurusan'] == jurusan_filter]
     
-    # Perbaikan: Tentukan kolom yang akan ditampilkan dengan urutan yang benar
-    display_columns = [
-        'Confidence',
-        'Academic_Performance',
-        'Engagement_Score', 
-        'Study_Efficiency',
-        'SKS_per_Semester',
-        'Error'
-    ]
-    
-    # Perbaikan: Format tampilan angka
-    display_df = filtered_df[display_columns].copy()
-    
-    # Format angka untuk tampilan lebih rapi
-    display_df['Confidence'] = display_df['Confidence'].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else '')
-    display_df['Academic_Performance'] = display_df['Academic_Performance'].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else '')
-    display_df['Engagement_Score'] = display_df['Engagement_Score'].apply(lambda x: f"{x:.1f}" if pd.notnull(x) else '')
-    display_df['Study_Efficiency'] = display_df['Study_Efficiency'].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else '')
-    display_df['SKS_per_Semester'] = display_df['SKS_per_Semester'].apply(lambda x: f"{x:.1f}" if pd.notnull(x) else '')
-    
-    # Tampilkan tabel
-    st.dataframe(display_df, use_container_width=True)
+    # Display filtered results
+    st.dataframe(filtered_df, use_container_width=True)
     
     # Download results
     if st.button("📥 Download Hasil ke Excel", type="secondary"):
@@ -831,7 +839,6 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             st.subheader("📂 Batch Processing:")
             st.info("💡 Gunakan tab 'Batch Upload' untuk memproses banyak mahasiswa sekaligus")
 
-# Main App
 # Main App
 def main():
     """Fungsi utama aplikasi"""
