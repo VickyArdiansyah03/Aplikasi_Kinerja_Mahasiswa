@@ -201,14 +201,17 @@ def create_batch_summary_charts(df_results):
     )
     
     # Chart 2: Distribusi per Jurusan
-    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().unstack(fill_value=0)
+    # Prepare data for bar chart
+    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().reset_index(name='Count')
     
     fig_bar = px.bar(
-        jurusan_prediksi.reset_index(),
+        jurusan_prediksi,
         x='Jurusan',
-        y=['LULUS', 'TIDAK LULUS'],
+        y='Count',
+        color='Prediksi',
         title="Prediksi Kelulusan per Jurusan",
-        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
+        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'},
+        barmode='group'
     )
     fig_bar.update_xaxes(tickangle=45)
     
