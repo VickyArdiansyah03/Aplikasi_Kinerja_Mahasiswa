@@ -1,4 +1,6 @@
 streamlit
-matplotlib
 pandas
-openpyxl
+numpy
+scikit-learn
+plotly
+imbalanced-learn
