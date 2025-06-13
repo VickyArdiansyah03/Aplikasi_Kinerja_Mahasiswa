@@ -568,8 +568,23 @@ def render_batch_results():
     if jurusan_filter != "Semua":
         filtered_df = filtered_df[filtered_df['Jurusan'] == jurusan_filter]
     
+    # PERUBAHAN UTAMA: Hapus kolom Error untuk hasil yang sukses
+    display_df = filtered_df.copy()
+    
+    # Jika bukan filter "Hanya Error", hilangkan kolom Error dari tampilan
+    if show_filter != "Hanya Error":
+        # Hanya tampilkan data yang tidak ada error
+        display_df = display_df[display_df['Error'].isna()]
+        # Hapus kolom Error dari tampilan
+        if 'Error' in display_df.columns:
+            display_df = display_df.drop(columns=['Error'])
+    
     # Display filtered results
-    st.dataframe(filtered_df, use_container_width=True)
+    st.dataframe(display_df, use_container_width=True)
+    
+    # Tampilkan pesan jika ada data dengan error (kecuali jika sedang filter error)
+    if show_filter != "Hanya Error" and error_count > 0:
+        st.warning(f"⚠️ {error_count} data mengalami error. Pilih filter 'Hanya Error' untuk melihat detail error.")
     
     # Download results
     if st.button("📥 Download Hasil ke Excel", type="secondary"):
@@ -577,8 +592,17 @@ def render_batch_results():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            # Sheet 1: Hasil detail
-            results_df.to_excel(writer, sheet_name='Hasil_Detail', index=False)
+            # Sheet 1: Hasil detail (tanpa error untuk data yang sukses)
+            success_results = results_df[results_df['Error'].isna()].drop(columns=['Error'])
+            error_results = results_df[results_df['Error'].notna()]
+            
+            # Sheet untuk hasil sukses
+            if len(success_results) > 0:
+                success_results.to_excel(writer, sheet_name='Hasil_Sukses', index=False)
+            
+            # Sheet untuk error (jika ada)
+            if len(error_results) > 0:
+                error_results.to_excel(writer, sheet_name='Data_Error', index=False)
             
             # Sheet 2: Summary
             if len(valid_results) > 0:
