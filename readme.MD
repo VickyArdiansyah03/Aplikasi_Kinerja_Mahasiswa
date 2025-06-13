@@ -9,7 +9,7 @@ Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasi
 - Input dan penyimpanan data nilai mahasiswa
 - Penghitungan indeks prestasi (IP) otomatis
 - Tampilan grafik atau statistik kinerja
-- Ekspor data (CSV/PDF)
+- Ekspor data (CSV/Excel)
 
 **Stack teknologi**:
 
