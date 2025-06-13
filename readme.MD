@@ -16,12 +16,12 @@ Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasi
 - Bahasa Pemrograman: Python
 - Framework: Streamlit
 
-## 🧠 Machine Learning
+## Machine Learning
 
 - Algorithm: Random Forest
 - Trained model saved as `random_forest_model.pkl`
 
-## ⚙️ Installation
+## Installation
 
 # Clone the repository
 
