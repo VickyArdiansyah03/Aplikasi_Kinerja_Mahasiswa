@@ -1,14 +1,20 @@
 # Aplikasi Kinerja Mahasiswa
 
--
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 📌 Project Overview
+## Deskripsi
 
--
+Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasiswa. Dilengkapi fitur:
 
-## 🛠️ Features
+- Input dan penyimpanan data nilai mahasiswa
+- Penghitungan indeks prestasi (IP) otomatis
+- Tampilan grafik atau statistik kinerja
+- Ekspor data (CSV/PDF)
 
--
+**Stack teknologi**:
+
+- Bahasa Pemrograman: Python
+- Framework: Streamlit
 
 ## 🧠 Machine Learning
 
