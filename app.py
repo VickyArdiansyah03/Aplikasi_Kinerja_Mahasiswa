@@ -175,7 +175,7 @@ def process_batch_data(df, model, jurusan_mapping):
             if jurusan_name not in jurusan_mapping:
                 results.append({
                     'Index': idx,
-                    'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
+                    'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                     'NIM': row.get('NIM', f'NIM_{idx}'),
                     'Jurusan': jurusan_name,
                     'Error': f'Jurusan "{jurusan_name}" tidak dikenal'
@@ -202,7 +202,7 @@ def process_batch_data(df, model, jurusan_mapping):
             # Simpan hasil
             results.append({
                 'Index': idx,
-                'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
+                'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': jurusan_name,
                 'IPK': ipk,
@@ -220,7 +220,7 @@ def process_batch_data(df, model, jurusan_mapping):
         except Exception as e:
             results.append({
                 'Index': idx,
-                'Nama': row.get('Nama', f'Mahasiswa_{idx}'),
+                'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
                 'Jurusan': row.get('Jurusan', 'Unknown'),
                 'Error': str(e)
@@ -482,7 +482,7 @@ def render_batch_upload_interface():
     with col2:
         st.markdown("*Kolom yang diperlukan:*")
         required_columns = [
-            "Nama", "NIM", "Jurusan", "IPK", "Jumlah_SKS",
+            "Nama Lengkap", "NIM", "Jurusan", "IPK", "Jumlah_SKS",
             "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas",
             "Skor_Evaluasi", "Lama_Studi"
         ]
@@ -1164,8 +1164,9 @@ def add_new_student_data(nama, nim, jurusan, ipk, jumlah_sks, nilai_mk, kehadira
     
     # Buat dictionary data baru
     new_data = {
-        'Nama': nama,
+        'Nama Lengkap': nama,
         'NIM': nim,
+        'Role' : 'Mahasiswa',
         'Jurusan': jurusan,
         'IPK': ipk,
         'Jumlah_SKS': jumlah_sks,
@@ -1205,41 +1206,7 @@ def add_new_student_data(nama, nim, jurusan, ipk, jumlah_sks, nilai_mk, kehadira
     except Exception as e:
         st.error(f"❌ Error menambah data: {str(e)}")
         return False
-    """Tambah data mahasiswa baru ke dataset"""
-    # Buat dictionary data baru
-    new_data = {
-        'Nama': nama,
-        'NIM': nim,
-        'Jurusan': jurusan,
-        'IPK': ipk,
-        'Jumlah_SKS': jumlah_sks,
-        'Nilai_Mata_Kuliah': nilai_mk,
-        'Jumlah_Kehadiran': kehadiran,
-        'Jumlah_Tugas': tugas,
-        'Skor_Evaluasi': skor_evaluasi,
-        'Lama_Studi': lama_studi
-    }
     
-    # Tambahkan ke dataframe
-    existing_data = st.session_state["admin_excel_data"]
-    new_row = pd.DataFrame([new_data])
-    
-    # Concatenate dengan data existing
-    updated_data = pd.concat([existing_data, new_row], ignore_index=True)
-    
-    # Update session state
-    st.session_state["admin_excel_data"] = updated_data
-    
-    # Log activity (opsional)
-    if "admin_activity_log" not in st.session_state:
-        st.session_state["admin_activity_log"] = []
-    
-    st.session_state["admin_activity_log"].append({
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'action': 'ADD_STUDENT',
-        'details': f"Added student: {nama} (NIM: {nim})"
-    })
-
 def render_export_data_interface():
     """Render interface untuk export data - FIXED VERSION"""
     st.subheader("📥 Export Data")
