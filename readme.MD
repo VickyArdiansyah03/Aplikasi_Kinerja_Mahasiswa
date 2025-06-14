@@ -21,7 +21,7 @@ Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasi
 
 ## Model Evaluation
 
-![Random Forest Evaluation](img/2)
+![Random Forest Evaluation](img/2.png)
 
 ## Interface
 
