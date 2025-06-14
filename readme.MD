@@ -1,7 +1,5 @@
 # Aplikasi Kinerja Mahasiswa
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
 ## Deskripsi
 
 Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasiswa. Dilengkapi fitur:
@@ -20,6 +18,20 @@ Aplikasi ini dikembangkan untuk memantau dan menampilkan kinerja akademik mahasi
 
 - Algorithm: Random Forest
 - Trained model saved as `random_forest_model.pkl`
+
+## Model Evaluation
+
+![Random Forest Evaluation](img/2)
+
+## Interface
+
+![Output Prediction](img/1.png)
+
+## Data Visualtization
+
+![Data Visualization before SMOTE](img/3.png)
+
+![Data Visualization after SMOTE](img/4.png)
 
 ## Installation
 
