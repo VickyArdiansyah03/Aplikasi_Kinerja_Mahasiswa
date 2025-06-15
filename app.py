@@ -1034,13 +1034,13 @@ def render_excel_upload_view(jurusan_mapping):
             filter_applied = False
             
             if search_term:
-                if 'Nama' in current_data.columns and 'NIM' in current_data.columns:
+                if 'Nama Lengkap' in current_data.columns and 'NIM' in current_data.columns:
                     display_data = current_data[
-                        (current_data['Nama'].str.contains(search_term, case=False, na=False)) |
+                        (current_data['Nama Lengkap'].str.contains(search_term, case=False, na=False)) |
                         (current_data['NIM'].astype(str).str.contains(search_term, case=False, na=False))
                     ]
-                elif 'Nama' in current_data.columns:
-                    display_data = current_data[current_data['Nama'].str.contains(search_term, case=False, na=False)]
+                elif 'Nama Lengkap' in current_data.columns:
+                    display_data = current_data[current_data['Nama Lengkap'].str.contains(search_term, case=False, na=False)]
                 filter_applied = True
             
             if jurusan_filter != "Semua" and 'Jurusan' in current_data.columns:
