@@ -687,7 +687,8 @@ def render_rekap_nilai_absensi(prodi_data):
         selected_mk = st.selectbox(
             "Pilih Mata Kuliah",
             options=["Semua"] + list(prodi_data['kehadiran']['Nama_MK'].unique())
-    
+        )
+        
     with col2:
         attendance_threshold = st.slider(
             "Threshold Kehadiran Minimal (%)",
