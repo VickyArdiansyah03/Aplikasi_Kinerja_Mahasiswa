@@ -1385,43 +1385,45 @@ with tab3:
             """, unsafe_allow_html=True)
 
 def main():
-"""Fungsi utama aplikasi"""
-if not st.session_state["logged_in"]:
-render_login_page()
-else:
-# Render header dengan info user
-render_header()
-
-    # Dapatkan fitur berdasarkan role
-    role_features = get_role_specific_features()
-    
-    # Load model dan encoders
-    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
-    
-    if model is None:
-        st.error("Aplikasi tidak dapat berjalan tanpa model. Silakan hubungi administrator.")
-        st.stop()
-    
-    # Tentukan tampilan berdasarkan role
-    if st.session_state["user_role"] == "Prodi":
-        render_prodi_dashboard()
-    elif st.session_state["user_role"] == "Admin":
-        render_admin_dashboard()
+    """Fungsi utama aplikasi"""
+    if not st.session_state.get("logged_in", False):
+        render_login_page()
     else:
-        # Mahasiswa atau Dosen
-        st.header(f"🎓 Sistem Prediksi Kelulusan {role_features['title_suffix']}")
-        
-        # Tab untuk prediksi individual dan batch
-        if role_features["show_batch_upload"]:
-            tab1, tab2 = st.tabs(["🔍 Prediksi Individual", "📂 Batch Upload"])
-            
-            with tab1:
-                render_individual_prediction(model, jurusan_mapping, role_features)
-            
-            with tab2:
-                render_batch_upload_interface()
-        else:
-            render_individual_prediction(model, jurusan_mapping, role_features)
+        # Render header dengan info user
+        render_header()
 
-if __name__ == "__main__"
-main()
+        # Dapatkan fitur berdasarkan role
+        role_features = get_role_specific_features()
+
+        # Load model dan encoders
+        model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
+
+        if model is None:
+            st.error("Aplikasi tidak dapat berjalan tanpa model. Silakan hubungi administrator.")
+            st.stop()
+
+        # Tentukan tampilan berdasarkan role
+        if st.session_state["user_role"] == "Prodi":
+            render_prodi_dashboard()
+        elif st.session_state["user_role"] == "Admin":
+            render_admin_dashboard()
+        else:
+            # Mahasiswa atau Dosen
+            st.header(f"🎓 Sistem Prediksi Kelulusan {role_features['title_suffix']}")
+
+            # Tab untuk prediksi individual dan batch
+            if role_features["show_batch_upload"]:
+                tab1, tab2 = st.tabs(["🔍 Prediksi Individual", "📂 Batch Upload"])
+
+                with tab1:
+                    render_individual_prediction(model, jurusan_mapping, role_features)
+
+                with tab2:
+                    render_batch_upload_interface()
+            else:
+                render_individual_prediction(model, jurusan_mapping, role_features)
+
+
+# Pemanggilan utama
+if __name__ == "__main__":
+    main()
