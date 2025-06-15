@@ -277,6 +277,7 @@ def create_sample_template():
     sample_data = {
         'Nama Lengkap': ['John Doe', 'Jane Smith', 'Ahmad Rahman'],
         'NIM': ['12345678', '87654321', '11223344'],
+        'Role': ['Mahasiswa', 'Mahasiswa', 'Mahasiswa']
         'Jurusan': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
         'IPK': [3.5, 2.8, 3.2],
         'Jumlah_SKS': [144, 144, 144],
