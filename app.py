@@ -438,6 +438,15 @@ def get_role_specific_features():
             "title_suffix": "- Mode Dosen",
             "show_excel_management": False
         }
+    elif role == "Prodi":
+        return {
+            "show_advanced_analysis": True,
+            "show_admin_features": True,
+            "show_batch_upload": True,
+            "prediction_limit": 20,
+            "title_suffix": "- Mode Prodi",
+            "show_excel_management": True
+        }
     else:  # Admin
         return {
             "show_advanced_analysis": True,
