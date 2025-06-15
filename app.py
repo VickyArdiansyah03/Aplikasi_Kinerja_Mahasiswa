@@ -44,6 +44,8 @@ def login(nama_user, id_user, selected_role):
         df_users = load_login_user_data("login_mahasiswa.xlsx", id_column="NIM")
     elif selected_role == "dosen":
         df_users = load_login_user_data("login_dosen.xlsx", id_column="NIDN")
+    elif selected_role == "prodi":
+        df_users = load_login_user_data("login_prodi.xlsx", id_column="Kode_Prodi")
     else:
         return False
     
@@ -357,7 +359,7 @@ def render_login_page():
             
             with st.form("login_form"):
                 nama_user = st.text_input("🧑 Nama Lengkap", placeholder="Masukkan nama lengkap")
-                role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin"])
+                role = st.selectbox("👥 Masuk Sebagai", ["Mahasiswa", "Dosen", "Admin", "Prodi"])
                 id_user = st.text_input("🆔 NIM/NIDN", placeholder="Masukkan NIM/NIDN Anda")
                 
                 submitted = st.form_submit_button("🚀 Login", type="primary", use_container_width=True)
