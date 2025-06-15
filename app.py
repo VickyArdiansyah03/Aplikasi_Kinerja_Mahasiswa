@@ -1423,5 +1423,5 @@ render_header()
         else:
             render_individual_prediction(model, jurusan_mapping, role_features)
 
-if name == "main":
+if __name__ == "__main__"
 main()
