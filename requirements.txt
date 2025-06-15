@@ -5,3 +5,5 @@ scikit-learn
 plotly
 imbalanced-learn
 openpyxl
+matplotlib
+
