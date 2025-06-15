@@ -158,6 +158,19 @@ def login(nama_user, id_user, selected_role):
     else:
         return False
 
+def load_login_user_data(filepath, id_column="ID"):
+    try:
+        df = pd.read_excel(filepath)
+        if id_column not in df.columns:
+            st.warning(f"Kolom '{id_column}' tidak ditemukan.")
+        return df
+    except FileNotFoundError:
+        st.error(f"File '{filepath}' tidak ditemukan.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Terjadi kesalahan saat memuat data login: {e}")
+        return pd.DataFrame()
+
 def logout():
     """Fungsi logout"""
     st.session_state["logged_in"] = False
