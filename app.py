@@ -908,15 +908,18 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         st.rerun()
 
 def render_prodi_dashboard():
-"""Render dashboard untuk prodi"""
-if st.session_state["prodi_data"] is None:
-st.error("Data prodi tidak tersedia")
-return
+    """Render dashboard untuk prodi"""
+    
+    if st.session_state["prodi_data"] is None:
+        st.error("Data prodi tidak tersedia")
+        return
 
-data = st.session_state["prodi_data"]
+    data = st.session_state["prodi_data"]
 
-st.header("📊 Dashboard Program Studi")
-st.markdown("---")
+    # Selanjutnya isi dashboard...
+    st.header("📊 Dashboard Program Studi")
+    st.markdown("---")
+
 
 # Tab untuk berbagai fitur
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
