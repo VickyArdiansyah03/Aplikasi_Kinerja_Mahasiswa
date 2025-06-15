@@ -504,10 +504,11 @@ def render_cpmk_report(prodi_data):
     col1, col2 = st.columns(2)
     
     with col1:
-        selected_mk = st.selectbox(
-            "Pilih Mata Kuliah",
-            options=["Semua"] + list(prodi_data['cpmk']['Nama_MK'].unique())
-        )
+       selected_mk = st.selectbox(
+    "Pilih Mata Kuliah",
+    options=["Semua"] + list(prodi_data['kehadiran']['Nama_MK'].unique())
+)
+
     
     with col2:
         threshold = st.slider(
