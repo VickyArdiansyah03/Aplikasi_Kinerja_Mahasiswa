@@ -275,7 +275,7 @@ def create_batch_summary_charts(df_results):
 def create_sample_template():
     """Buat template Excel untuk batch upload"""
     sample_data = {
-        'Nama': ['John Doe', 'Jane Smith', 'Ahmad Rahman'],
+        'Nama Lengkap': ['John Doe', 'Jane Smith', 'Ahmad Rahman'],
         'NIM': ['12345678', '87654321', '11223344'],
         'Jurusan': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
         'IPK': [3.5, 2.8, 3.2],
