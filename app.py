@@ -1127,16 +1127,16 @@ with tab5:
             st.error(f"Error membaca file: {str(e)}")
 
 def render_admin_dashboard():
-"""Render dashboard untuk admin"""
-st.header("👨‍💼 Admin Dashboard")
-st.markdown("---")
+    """Render dashboard untuk admin"""
+    st.header("👨‍💼 Admin Dashboard")
+    st.markdown("---")
 
-# Tab untuk berbagai fitur admin
-tab1, tab2, tab3 = st.tabs([
-    "📊 Statistik Sistem", 
-    "📂 Kelola Data", 
-    "📝 Log Aktivitas"
-])
+    # Tab untuk berbagai fitur admin
+    tab1, tab2, tab3 = st.tabs([
+        "📊 Statistik Sistem", 
+        "📂 Kelola Data", 
+        "📝 Log Aktivitas"
+    ])
 
 with tab1:
     st.subheader("📊 Statistik Pengguna Sistem")
