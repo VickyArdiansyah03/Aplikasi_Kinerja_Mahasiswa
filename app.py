@@ -812,10 +812,8 @@ def render_batch_results():
 
 def render_individual_prediction(model, jurusan_mapping, role_features):
     """Render interface prediksi individual"""
-    # Sidebar untuk input
     st.sidebar.header("📝 Input Data Mahasiswa")
-    
-    # Role-specific sidebar info
+
     if st.session_state["user_role"] == "Mahasiswa":
         user_data = get_student_data(
             st.session_state["user_name"],
@@ -831,175 +829,60 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         ipk = float(user_data["IPK"])
         jumlah_sks = int(user_data["Jumlah_SKS"])
         nilai_mk = float(user_data["Nilai_Mata_Kuliah"])
-        kehadiran = float (user_data["Jumlah_Kehadiran"])
+        kehadiran = float(user_data["Jumlah_Kehadiran"])
         tugas = int(user_data["Jumlah_Tugas"])
         skor_evaluasi = float(user_data["Skor_Evaluasi"])
         lama_studi = int(user_data["Lama_Studi"])
 
-    # Tampilkan data mahasiswa di sidebar
-    st.sidebar.markdown(f"**Nama:** {st.session_state['user_name']}")
-    st.sidebar.markdown(f"**NIM:** {st.session_state.get('user_nim', '')}")
-    st.sidebar.markdown(f"**Jurusan:** {jurusan_selected}")
-    st.sidebar.markdown(f"**IPK:** {ipk}")
-    st.sidebar.markdown(f"**SKS:** {jumlah_sks}")
-else:
-    # Input manual untuk dosen/admin/prodi
-    jurusan_selected = st.sidebar.selectbox(
-        "Jurusan",
-        options=list(jurusan_mapping.keys())
-    jurusan_encoded = jurusan_mapping[jurusan_selected]
-    
-    ipk = st.sidebar.slider(
-        "IPK", 
-        min_value=0.0, 
-        max_value=4.0, 
-        value=3.0, 
-        step=0.1,
-        help="Indeks Prestasi Kumulatif"
-    )
-    
-    jumlah_sks = st.sidebar.number_input(
-        "Jumlah SKS",
-        min_value=0,
-        max_value=200,
-        value=144,
-        step=1,
-        help="Total SKS yang telah diambil"
-    )
-    
-    nilai_mk = st.sidebar.slider(
-        "Rata-rata Nilai Mata Kuliah",
-        min_value=0,
-        max_value=100,
-        value=75,
-        step=1,
-        help="Nilai rata-rata mata kuliah dalam persentase"
-    )
-    
-    kehadiran = st.sidebar.slider(
-        "Persentase Kehadiran",
-        min_value=0,
-        max_value=100,
-        value=85,
-        step=1,
-        help="Persentase kehadiran di kelas"
-    )
-    
-    tugas = st.sidebar.number_input(
-        "Jumlah Tugas Diselesaikan",
-        min_value=0,
-        max_value=50,
-        value=15,
-        step=1,
-        help="Total tugas yang telah diselesaikan"
-    )
-    
-    skor_evaluasi = st.sidebar.slider(
-        "Skor Evaluasi Dosen",
-        min_value=1.0,
-        max_value=5.0,
-        value=4.0,
-        step=0.1,
-        help="Skor evaluasi pengajaran oleh mahasiswa"
-    )
-    
-    lama_studi = st.sidebar.number_input(
-        "Lama Studi (Semester)",
-        min_value=1,
-        max_value=14,
-        value=8,
-        step=1,
-        help="Jumlah semester yang telah ditempuh"
-    )
+        # Tampilkan data mahasiswa di sidebar
+        st.sidebar.markdown(f"**Nama:** {st.session_state['user_name']}")
+        st.sidebar.markdown(f"**NIM:** {st.session_state.get('user_nim', '')}")
+        st.sidebar.markdown(f"**Jurusan:** {jurusan_selected}")
+        st.sidebar.markdown(f"**IPK:** {ipk}")
+        st.sidebar.markdown(f"**SKS:** {jumlah_sks}")
 
-# Tombol prediksi
-if st.sidebar.button("🎯 Prediksi Kelulusan", type="primary", use_container_width=True):
-    with st.spinner("Memprediksi kelulusan..."):
-        hasil = predict_graduation(
-            model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
-            kehadiran, tugas, skor_evaluasi, lama_studi
+    else:
+        # Input manual untuk dosen/admin/prodi
+        jurusan_selected = st.sidebar.selectbox(
+            "Jurusan",
+            options=list(jurusan_mapping.keys())
         )
-        
-        # Simpan hasil ke session state
-        st.session_state["prediction_result"] = hasil
-        st.session_state["input_values"] = {
-            "jurusan": jurusan_selected,
-            "ipk": ipk,
-            "jumlah_sks": jumlah_sks,
-            "nilai_mk": nilai_mk,
-            "kehadiran": kehadiran,
-            "tugas": tugas,
-            "skor_evaluasi": skor_evaluasi,
-            "lama_studi": lama_studi
-        }
-        
-        st.rerun()
+        jurusan_encoded = jurusan_mapping[jurusan_selected]
 
-# Tampilkan hasil prediksi jika ada
-if "prediction_result" in st.session_state:
-    hasil = st.session_state["prediction_result"]
-    input_values = st.session_state["input_values"]
-    
-    st.header("📊 Hasil Prediksi Kelulusan")
-    
-    # Layout utama
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        # Gauge chart untuk probabilitas
-        prediksi_label = "LULUS" if hasil['prediksi'] == 1 else "TIDAK LULUS"
-        warna = "#2E8B57" if prediksi_label == "LULUS" else "#DC143C"
-        
-        st.markdown(f"""
-        <div style='border: 2px solid {warna}; border-radius: 10px; padding: 20px; text-align: center;'>
-            <h3 style='color: {warna};'>PREDIKSI: {prediksi_label}</h3>
-            <p>Confidence: <strong>{hasil['confidence']:.1%}</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Gauge charts
-        st.plotly_chart(
-            create_gauge_chart(
-                hasil['probabilitas_lulus'],
-                "Probabilitas Lulus"
-            ),
-            use_container_width=True
+        ipk = st.sidebar.slider(
+            "IPK", min_value=0.0, max_value=4.0, value=3.0, step=0.1,
+            help="Indeks Prestasi Kumulatif"
         )
-        
-        # Fitur engineered
-        st.markdown("### 📊 Fitur Akademik")
-        st.metric("Academic Performance", f"{hasil['academic_performance']:.2f}")
-        st.metric("Engagement Score", f"{hasil['engagement_score']:.2f}")
-        st.metric("Study Efficiency", f"{hasil['study_efficiency']:.2f}")
-        st.metric("SKS per Semester", f"{hasil['sks_per_semester']:.2f}")
-    
-    with col2:
-        # Radar chart
-        st.plotly_chart(
-            create_feature_radar_chart(
-                hasil['academic_performance'],
-                hasil['engagement_score'],
-                hasil['study_efficiency'],
-                hasil['sks_per_semester']
-            ),
-            use_container_width=True
+
+        jumlah_sks = st.sidebar.number_input(
+            "Jumlah SKS", min_value=0, max_value=200, value=144, step=1,
+            help="Total SKS yang telah diambil"
         )
-        
-        # Detail input
-        st.markdown("### 📝 Detail Input")
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            st.metric("Jurusan", input_values["jurusan"])
-            st.metric("IPK", input_values["ipk"])
-            st.metric("Jumlah SKS", input_values["jumlah_sks"])
-            st.metric("Rata-rata Nilai MK", f"{input_values['nilai_mk']}%")
-        
-        with col_b:
-            st.metric("Kehadiran", f"{input_values['kehadiran']}%")
-            st.metric("Tugas Diselesaikan", input_values["tugas"])
-            st.metric("Skor Evaluasi Dosen", input_values["skor_evaluasi"])
-            st.metric("Lama Studi", f"{input_values['lama_studi']} semester")
+
+        nilai_mk = st.sidebar.slider(
+            "Rata-rata Nilai Mata Kuliah", min_value=0, max_value=100, value=75, step=1,
+            help="Nilai rata-rata mata kuliah dalam persentase"
+        )
+
+        kehadiran = st.sidebar.slider(
+            "Persentase Kehadiran", min_value=0, max_value=100, value=85, step=1,
+            help="Persentase kehadiran di kelas"
+        )
+
+        tugas = st.sidebar.number_input(
+            "Jumlah Tugas Diselesaikan", min_value=0, max_value=50, value=15, step=1,
+            help="Total tugas yang telah diselesaikan"
+        )
+
+        skor_evaluasi = st.sidebar.slider(
+            "Skor Evaluasi Dosen", min_value=1.0, max_value=5.0, value=4.0, step=0.1,
+            help="Skor evaluasi pengajaran oleh mahasiswa"
+        )
+
+        lama_studi = st.sidebar.number_input(
+            "Lama Studi (Semester)", min_value=1, max_value=14, value=8, step=1,
+            help="Jumlah semester yang telah ditempuh"
+        )
         
         # Rekomendasi
         st.markdown("### 💡 Rekomendasi")
