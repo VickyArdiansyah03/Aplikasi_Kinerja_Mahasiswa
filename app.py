@@ -29,6 +29,16 @@ if "batch_results" not in st.session_state:
     st.session_state["batch_results"] = None
 if "prodi_data" not in st.session_state:
     st.session_state["prodi_data"] = None
+if "admin_excel_data" not in st.session_state:
+    st.session_state["admin_excel_data"] = None
+if "data_modified" not in st.session_state:
+    st.session_state["data_modified"] = False
+if "current_filename" not in st.session_state:
+    st.session_state["current_filename"] = ""
+if "original_filename" not in st.session_state:
+    st.session_state["original_filename"] = ""
+if "admin_activity_log" not in st.session_state:
+    st.session_state["admin_activity_log"] = []
 
 # Load sample data for prodi dashboard (in a real app, this would come from a database)
 def load_sample_prodi_data():
@@ -172,13 +182,18 @@ def load_login_user_data(filepath, id_column="ID"):
         return pd.DataFrame()
 
 def render_header():
-    st.markdown("""
-        <div style="text-align:center;">
-            <h2 style="color:#4CAF50;">📊 Dashboard Kinerja Mahasiswa</h2>
-            <hr style="margin-top:-10px;">
-        </div>
-    """, unsafe_allow_html=True)
+    """Render header dengan info user dan logout"""
+    col1, col2 = st.columns([3, 1])
     
+    with col1:
+        st.title("🎓 Sistem Prediksi Kelulusan & Dashboard Prodi")
+        st.caption(f"Selamat datang, *{st.session_state['user_name']}* ({st.session_state['user_role']})")
+    
+    with col2:
+        if st.button("🚪 Logout", type="secondary"):
+            logout()
+            st.rerun()
+
 def logout():
     """Fungsi logout"""
     st.session_state["logged_in"] = False
@@ -186,6 +201,11 @@ def logout():
     st.session_state["user_role"] = ""
     st.session_state["batch_results"] = None
     st.session_state["prodi_data"] = None
+    st.session_state["admin_excel_data"] = None
+    st.session_state["data_modified"] = False
+    st.session_state["current_filename"] = ""
+    st.session_state["original_filename"] = ""
+    st.session_state["admin_activity_log"] = []
 
 # Cache untuk loading model
 @st.cache_data
@@ -215,7 +235,241 @@ def load_model_and_encoders():
         st.error("Pastikan file model sudah diupload ke direktori aplikasi")
         return None, None, None, None
 
-# [Previous functions remain the same until render_login_page]
+def calculate_engineered_features(ipk, nilai_mk, kehadiran, tugas, jumlah_sks, lama_studi):
+    """Hitung fitur-fitur yang di-engineer"""
+    academic_performance = (ipk * 0.6) + (nilai_mk * 0.4 / 100)
+    engagement_score = (kehadiran * 0.7) + (tugas * 0.3)
+    study_efficiency = ipk / lama_studi if lama_studi > 0 else 0
+    sks_per_semester = jumlah_sks / lama_studi if lama_studi > 0 else 0
+    
+    return academic_performance, engagement_score, study_efficiency, sks_per_semester
+
+def get_student_data(nama, nim):
+    df_users = load_login_user_data("login_mahasiswa.xlsx")
+    user_row = df_users[
+        (df_users["Nama Lengkap"].str.strip().str.lower() == nama.strip().lower()) &
+        (df_users["NIM"].astype(str) == str(nim).strip())
+    ]
+    return user_row.iloc[0] if not user_row.empty else None
+
+def predict_graduation(model, jurusan_encoded, ipk, jumlah_sks, nilai_mk, 
+                      kehadiran, tugas, skor_evaluasi, lama_studi):
+    """Fungsi untuk memprediksi kelulusan"""
+    
+    # Hitung fitur engineered
+    academic_performance, engagement_score, study_efficiency, sks_per_semester = \
+        calculate_engineered_features(ipk, nilai_mk, kehadiran, tugas, jumlah_sks, lama_studi)
+    
+    # Buat dataframe untuk prediksi
+    data_prediksi = pd.DataFrame({
+        'Jurusan': [jurusan_encoded],
+        'IPK': [ipk],
+        'Jumlah SKS': [jumlah_sks],
+        'Nilai Mata Kuliah': [nilai_mk],
+        'Jumlah Kehadiran': [kehadiran],
+        'Jumlah Tugas': [tugas],
+        'Skor Evaluasi Dosen oleh Mahasiswa': [skor_evaluasi],
+        'Waktu Lama Studi (semester)': [lama_studi],
+        'Academic_Performance': [academic_performance],
+        'Engagement_Score': [engagement_score],
+        'Study_Efficiency': [study_efficiency],
+        'SKS_per_Semester': [sks_per_semester]
+    })
+    
+    # Prediksi
+    prediksi = model.predict(data_prediksi)[0]
+    probabilitas = model.predict_proba(data_prediksi)[0]
+    
+    return {
+        'prediksi': prediksi,
+        'probabilitas_tidak_lulus': probabilitas[0],
+        'probabilitas_lulus': probabilitas[1],
+        'confidence': max(probabilitas),
+        'academic_performance': academic_performance,
+        'engagement_score': engagement_score,
+        'study_efficiency': study_efficiency,
+        'sks_per_semester': sks_per_semester
+    }
+
+def process_batch_data(df, model, jurusan_mapping):
+    """Proses data batch untuk prediksi"""
+    results = []
+    
+    for idx, row in df.iterrows():
+        try:
+            # Konversi jurusan ke encoded value
+            jurusan_name = row['Jurusan']
+            if jurusan_name not in jurusan_mapping:
+                results.append({
+                    'Index': idx,
+                    'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
+                    'NIM': row.get('NIM', f'NIM_{idx}'),
+                    'Jurusan': jurusan_name,
+                    'Error': f'Jurusan "{jurusan_name}" tidak dikenal'
+                })
+                continue
+            
+            jurusan_encoded = jurusan_mapping[jurusan_name]
+            
+            # Ekstrak data
+            ipk = float(row['IPK'])
+            jumlah_sks = int(row['Jumlah_SKS'])
+            nilai_mk = float(row['Nilai_Mata_Kuliah'])
+            kehadiran = float(row['Jumlah_Kehadiran'])
+            tugas = int(row['Jumlah_Tugas'])
+            skor_evaluasi = float(row['Skor_Evaluasi'])
+            lama_studi = int(row['Lama_Studi'])
+            
+            # Prediksi
+            hasil = predict_graduation(
+                model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
+                kehadiran, tugas, skor_evaluasi, lama_studi
+            )
+            
+            # Simpan hasil
+            results.append({
+                'Index': idx,
+                'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
+                'NIM': row.get('NIM', f'NIM_{idx}'),
+                'Jurusan': jurusan_name,
+                'IPK': ipk,
+                'Prediksi': 'LULUS' if hasil['prediksi'] == 1 else 'TIDAK LULUS',
+                'Probabilitas_Lulus': hasil['probabilitas_lulus'],
+                'Probabilitas_Tidak_Lulus': hasil['probabilitas_tidak_lulus'],
+                'Confidence': hasil['confidence'],
+                'Academic_Performance': hasil['academic_performance'],
+                'Engagement_Score': hasil['engagement_score'],
+                'Study_Efficiency': hasil['study_efficiency'],
+                'SKS_per_Semester': hasil['sks_per_semester'],
+                'Error': None
+            })
+            
+        except Exception as e:
+            results.append({
+                'Index': idx,
+                'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
+                'NIM': row.get('NIM', f'NIM_{idx}'),
+                'Jurusan': row.get('Jurusan', 'Unknown'),
+                'Error': str(e)
+            })
+    
+    return pd.DataFrame(results)
+
+def create_batch_summary_charts(df_results):
+    """Buat chart summary untuk batch results"""
+    # Filter data yang valid (tanpa error)
+    valid_results = df_results[df_results['Error'].isna()]
+    
+    if len(valid_results) == 0:
+        return None, None, None
+    
+    # Chart 1: Distribusi Prediksi
+    prediksi_counts = valid_results['Prediksi'].value_counts()
+    
+    fig_pie = px.pie(
+        values=prediksi_counts.values,
+        names=prediksi_counts.index,
+        title="Distribusi Prediksi Kelulusan",
+        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
+    )
+    
+    # Chart 2: Distribusi per Jurusan
+    # Prepare data for bar chart
+    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().reset_index(name='Count')
+    
+    fig_bar = px.bar(
+        jurusan_prediksi,
+        x='Jurusan',
+        y='Count',
+        color='Prediksi',
+        title="Prediksi Kelulusan per Jurusan",
+        color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'},
+        barmode='group'
+    )
+    fig_bar.update_xaxes(tickangle=45)
+    
+    # Chart 3: Distribusi Confidence
+    fig_hist = px.histogram(
+        valid_results,
+        x='Confidence',
+        nbins=20,
+        title="Distribusi Confidence Score",
+        labels={'Confidence': 'Confidence Score', 'count': 'Jumlah Mahasiswa'}
+    )
+    
+    return fig_pie, fig_bar, fig_hist
+
+def create_sample_template():
+    """Buat template Excel untuk batch upload"""
+    sample_data = {
+        'Nama Lengkap': ['John Doe', 'Jane Smith', 'Ahmad Rahman'],
+        'NIM': ['12345678', '87654321', '11223344'],
+        'Role': ['Mahasiswa', 'Mahasiswa', 'Mahasiswa'],
+        'Jurusan': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
+        'IPK': [3.5, 2.8, 3.2],
+        'Jumlah_SKS': [144, 144, 144],
+        'Nilai_Mata_Kuliah': [85, 70, 80],
+        'Jumlah_Kehadiran': [90, 65, 85],
+        'Jumlah_Tugas': [20, 12, 18],
+        'Skor_Evaluasi': [4.2, 3.5, 4.0],
+        'Lama_Studi': [8, 10, 8]
+    }
+    
+    return pd.DataFrame(sample_data)
+
+def create_gauge_chart(value, title, max_val=1):
+    """Membuat gauge chart untuk probabilitas"""
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number+delta",
+        value = value,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': title},
+        gauge = {
+            'axis': {'range': [None, max_val]},
+            'bar': {'color': "darkblue"},
+            'steps': [
+                {'range': [0, 0.5], 'color': "lightgray"},
+                {'range': [0.5, 1], 'color': "gray"}],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': 0.5}}))
+    
+    fig.update_layout(height=300)
+    return fig
+
+def create_feature_radar_chart(academic_perf, engagement, study_eff, sks_per_sem):
+    """Membuat radar chart untuk fitur-fitur engineered"""
+    categories = ['Academic Performance', 'Engagement Score', 'Study Efficiency', 'SKS per Semester']
+    
+    # Normalisasi nilai untuk radar chart
+    values = [
+        min(academic_perf / 4.0, 1.0),  # Normalisasi academic performance
+        min(engagement / 100, 1.0),     # Normalisasi engagement score
+        min(study_eff / 0.5, 1.0),      # Normalisasi study efficiency
+        min(sks_per_sem / 25, 1.0)      # Normalisasi SKS per semester
+    ]
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        name='Profil Mahasiswa'
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 1]
+            )),
+        showlegend=True,
+        height=400
+    )
+    
+    return fig
 
 def render_login_page():
     """Render halaman login"""
@@ -250,7 +504,7 @@ def render_login_page():
     
     with col1:
         st.markdown("""
-        *👨‍🎓 Mahasiswa*
+        👨‍🎓 Mahasiswa
         - Prediksi kelulusan pribadi
         - Melihat profil akademik
         - Transkrip nilai
@@ -259,16 +513,16 @@ def render_login_page():
     
     with col2:
         st.markdown("""
-        *👨‍🏫 Dosen*
+        👨‍🏫 Dosen
         - Prediksi untuk mahasiswa
         - Analisis mendalam
         - Tools evaluasi
-        - *Batch upload Excel*
+        - Batch upload Excel
         """)
     
     with col3:
         st.markdown("""
-        *🏛 Prodi*
+        🏛 Prodi
         - Transkrip nilai mahasiswa
         - Laporan CPMK & CPL
         - Rekap nilai & absensi
@@ -278,735 +532,896 @@ def render_login_page():
     
     with col4:
         st.markdown("""
-        *👨‍💼 Admin*
+        👨‍💼 Admin
         - Akses penuh sistem
         - Kelola data
         - Laporan statistik
-        - *Batch upload Excel*
+        - Batch upload Excel
         """)
 
-def render_prodi_dashboard():
-    """Render dashboard khusus prodi"""
-    render_header()
-    st.markdown("---")
+def get_role_specific_features():
+    """Mendapatkan fitur berdasarkan role"""
+    role = st.session_state["user_role"]
     
-    # Load prodi data
-    prodi_data = st.session_state["prodi_data"]
-    
-    # Menu navigasi prodi
-    menu_options = [
-        "📊 Dashboard Utama",
-        "📝 Transkrip Nilai Mahasiswa",
-        "🎯 Laporan Ketercapaian CPMK",
-        "📈 Kontribusi CPMK terhadap CPL",
-        "✅ Rekap Nilai & Absensi",
-        "📌 Evaluasi Kinerja Akademik"
-    ]
-    
-    selected_menu = st.sidebar.selectbox("Menu Prodi", menu_options)
-    
-    if selected_menu == "📊 Dashboard Utama":
-        render_prodi_main_dashboard(prodi_data)
-    elif selected_menu == "📝 Transkrip Nilai Mahasiswa":
-        render_transkrip_nilai(prodi_data)
-    elif selected_menu == "🎯 Laporan Ketercapaian CPMK":
-        render_cpmk_report(prodi_data)
-    elif selected_menu == "📈 Kontribusi CPMK terhadap CPL":
-        render_cpl_contribution(prodi_data)
-    elif selected_menu == "✅ Rekap Nilai & Absensi":
-        render_rekap_nilai_absensi(prodi_data)
-    elif selected_menu == "📌 Evaluasi Kinerja Akademik":
-        render_evaluasi_kinerja(prodi_data)
+    if role == "Mahasiswa":
+        return {
+            "show_advanced_analysis": False,
+            "show_admin_features": False,
+            "show_batch_upload": False,
+            "prediction_limit": 3,
+            "title_suffix": "- Mode Mahasiswa",
+            "show_excel_management": False
+        }
+    elif role == "Dosen":
+        return {
+            "show_advanced_analysis": True,
+            "show_admin_features": False,
+            "show_batch_upload": True,
+            "prediction_limit": 10,
+            "title_suffix": "- Mode Dosen",
+            "show_excel_management": False
+        }
+    elif role == "Prodi":
+        return {
+            "show_advanced_analysis": True,
+            "show_admin_features": False,
+            "show_batch_upload": False,
+            "prediction_limit": None,
+            "title_suffix": "- Mode Prodi",
+            "show_excel_management": False
+        }
+    else:  # Admin
+        return {
+            "show_advanced_analysis": True,
+            "show_admin_features": True,
+            "show_batch_upload": True,
+            "prediction_limit": None,
+            "title_suffix": "- Mode Admin",
+            "show_excel_management": True
+        }
 
-def render_prodi_main_dashboard(prodi_data):
-    """Render dashboard utama prodi"""
-    st.header(f"📊 Dashboard Prodi - {st.session_state['user_name']}")
+def render_batch_upload_interface():
+    """Render interface untuk batch upload"""
+    st.header("📂 Batch Upload & Prediksi")
+    st.markdown("Upload file Excel berisi data mahasiswa untuk prediksi batch")
     
-    # Ringkasan statistik
-    st.subheader("📌 Ringkasan Statistik")
+    # Load model
+    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
     
+    if model is None:
+        st.stop()
+    
+    # Template download
+    st.subheader("📄 Download Template")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.info("💡 Download template Excel untuk memastikan format data yang benar")
+        
+        # Buat template
+        template_df = create_sample_template()
+        
+        # Konversi ke Excel
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            template_df.to_excel(writer, sheet_name='Template', index=False)
+        
+        st.download_button(
+            label="📥 Download Template Excel",
+            data=buffer.getvalue(),
+            file_name=f"template_batch_prediksi_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary"
+        )
+    
+    with col2:
+        st.markdown("*Kolom yang diperlukan:*")
+        required_columns = [
+            "Nama Lengkap", "NIM", "Jurusan", "IPK", "Jumlah_SKS",
+            "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas",
+            "Skor_Evaluasi", "Lama_Studi"
+        ]
+        for col in required_columns:
+            st.write(f"• {col}")
+    
+    # Upload file
+    st.subheader("📤 Upload File Excel")
+    uploaded_file = st.file_uploader(
+        "Pilih file Excel (.xlsx)",
+        type=['xlsx'],
+        help="File Excel harus mengandung kolom sesuai template"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Baca file Excel
+            df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File berhasil diupload! Ditemukan {len(df)} baris data")
+            
+            # Tampilkan preview data
+            st.subheader("👀 Preview Data")
+            st.dataframe(df.head(), use_container_width=True)
+            
+            # Validasi kolom
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                st.error(f"❌ Kolom yang hilang: {', '.join(missing_columns)}")
+                return
+            
+            # Proses batch prediksi
+            if st.button("🚀 Proses Batch Prediksi", type="primary"):
+                with st.spinner("Memproses prediksi batch..."):
+                    # Proses data
+                    results_df = process_batch_data(df, model, jurusan_mapping)
+                    
+                    # Simpan hasil ke session state
+                    st.session_state["batch_results"] = results_df
+                    
+                    st.success("✅ Batch prediksi selesai!")
+                    st.rerun()
+        
+        except Exception as e:
+            st.error(f"❌ Error membaca file: {str(e)}")
+    
+    # Tampilkan hasil jika ada
+    if st.session_state["batch_results"] is not None:
+        render_batch_results()
+
+def render_batch_results():
+    """Render hasil batch prediksi"""
+    results_df = st.session_state["batch_results"]
+    
+    st.subheader("📊 Hasil Batch Prediksi")
+    
+    # Summary statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_processed = len(results_df)
+    valid_results = results_df[results_df['Error'].isna()]
+    error_count = len(results_df[results_df['Error'].notna()])
+    
+    if len(valid_results) > 0:
+        lulus_count = len(valid_results[valid_results['Prediksi'] == 'LULUS'])
+        tidak_lulus_count = len(valid_results[valid_results['Prediksi'] == 'TIDAK LULUS'])
+        avg_confidence = valid_results['Confidence'].mean()
+    else:
+        lulus_count = tidak_lulus_count = 0
+        avg_confidence = 0
+    
+    with col1:
+        st.metric("Total Diproses", total_processed)
+    
+    with col2:
+        st.metric("Prediksi Lulus", lulus_count, delta=f"{lulus_count/len(valid_results)*100:.1f}%" if len(valid_results) > 0 else "0%")
+    
+    with col3:
+        st.metric("Prediksi Tidak Lulus", tidak_lulus_count, delta=f"{tidak_lulus_count/len(valid_results)*100:.1f}%" if len(valid_results) > 0 else "0%")
+    
+    with col4:
+        st.metric("Avg Confidence", f"{avg_confidence:.1%}" if avg_confidence > 0 else "0%")
+    
+    # Charts
+    if len(valid_results) > 0:
+        st.subheader("📈 Visualisasi Hasil")
+        
+        fig_pie, fig_bar, fig_hist = create_batch_summary_charts(results_df)
+        
+        if fig_pie is not None:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with col2:
+                st.plotly_chart(fig_hist, use_container_width=True)
+            
+            st.plotly_chart(fig_bar, use_container_width=True)
+    
+    # Detailed results
+    st.subheader("📋 Hasil Detail")
+    
+    # Filter options
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        show_filter = st.selectbox(
+            "Filter Results",
+            ["Semua", "Hanya Lulus", "Hanya Tidak Lulus", "Hanya Error"]
+        )
+    
+    with col2:
+        if len(valid_results) > 0:
+            jurusan_filter = st.selectbox(
+                "Filter Jurusan",
+                ["Semua"] + list(valid_results['Jurusan'].unique())
+            )
+        else:
+            jurusan_filter = "Semua"
+    
+    # Apply filters
+    filtered_df = results_df.copy()
+    
+    if show_filter == "Hanya Lulus":
+        filtered_df = filtered_df[filtered_df['Prediksi'] == 'LULUS']
+    elif show_filter == "Hanya Tidak Lulus":
+        filtered_df = filtered_df[filtered_df['Prediksi'] == 'TIDAK LULUS']
+    elif show_filter == "Hanya Error":
+        filtered_df = filtered_df[filtered_df['Error'].notna()]
+    
+    if jurusan_filter != "Semua":
+        filtered_df = filtered_df[filtered_df['Jurusan'] == jurusan_filter]
+    
+    # PERUBAHAN UTAMA: Hapus kolom Error untuk hasil yang sukses
+    display_df = filtered_df.copy()
+    
+    # Jika bukan filter "Hanya Error", hilangkan kolom Error dari tampilan
+    if show_filter != "Hanya Error":
+        # Hanya tampilkan data yang tidak ada error
+        display_df = display_df[display_df['Error'].isna()]
+        # Hapus kolom Error dari tampilan
+        if 'Error' in display_df.columns:
+            display_df = display_df.drop(columns=['Error'])
+    
+    # Display filtered results
+    st.dataframe(display_df, use_container_width=True)
+    
+    # Tampilkan pesan jika ada data dengan error (kecuali jika sedang filter error)
+    if show_filter != "Hanya Error" and error_count > 0:
+        st.warning(f"⚠️ {error_count} data mengalami error. Pilih filter 'Hanya Error' untuk melihat detail error.")
+    
+    # Download results
+    if st.button("📥 Download Hasil ke Excel", type="secondary"):
+        buffer = io.BytesIO()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            # Sheet 1: Hasil detail (tanpa error untuk data yang sukses)
+            success_results = results_df[results_df['Error'].isna()].drop(columns=['Error'])
+            error_results = results_df[results_df['Error'].notna()]
+            
+            # Sheet untuk hasil sukses
+            if len(success_results) > 0:
+                success_results.to_excel(writer, sheet_name='Hasil_Sukses', index=False)
+            
+            # Sheet untuk error (jika ada)
+            if len(error_results) > 0:
+                error_results.to_excel(writer, sheet_name='Data_Error', index=False)
+            
+            # Sheet 2: Summary
+            if len(valid_results) > 0:
+                summary_data = {
+                    'Metrik': ['Total Diproses', 'Prediksi Lulus', 'Prediksi Tidak Lulus', 'Error Count', 'Avg Confidence'],
+                    'Nilai': [total_processed, lulus_count, tidak_lulus_count, error_count, f"{avg_confidence:.1%}"]
+                }
+                summary_df = pd.DataFrame(summary_data)
+                summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        st.download_button(
+            label="📥 Download Excel",
+            data=buffer.getvalue(),
+            file_name=f"hasil_batch_prediksi_{timestamp}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    
+    # Clear results
+    if st.button("🗑 Clear Results", type="secondary"):
+        st.session_state["batch_results"] = None
+        st.rerun()
+
+def render_individual_prediction(model, jurusan_mapping, role_features):
+    """Render interface prediksi individual"""
+    # Sidebar untuk input
+    st.sidebar.header("📝 Input Data Mahasiswa")
+    
+    # Role-specific sidebar info
+    if st.session_state["user_role"] == "Mahasiswa":
+        user_data = get_student_data(
+            st.session_state["user_name"],
+            st.session_state.get("user_nim", ""),
+        )
+
+        if user_data is None:
+            st.error("Data mahasiswa tidak ditemukan")
+            st.stop()
+
+        jurusan_selected = user_data["Jurusan"]
+        jurusan_encoded = jurusan_mapping.get(jurusan_selected, 0)
+        ipk = float(user_data["IPK"])
+        jumlah_sks = int(user_data["Jumlah_SKS"])
+        nilai_mk = float(user_data["Nilai_Mata_Kuliah"])
+        kehadiran = float (user_data["Jumlah_Kehadiran"])
+        tugas = int(user_data["Jumlah_Tugas"])
+        skor_evaluasi = float(user_data["Skor_Evaluasi"])
+        lama_studi = int(user_data["Lama_Studi"])
+
+    # Tampilkan data mahasiswa di sidebar
+    st.sidebar.markdown(f"**Nama:** {st.session_state['user_name']}")
+    st.sidebar.markdown(f"**NIM:** {st.session_state.get('user_nim', '')}")
+    st.sidebar.markdown(f"**Jurusan:** {jurusan_selected}")
+    st.sidebar.markdown(f"**IPK:** {ipk}")
+    st.sidebar.markdown(f"**SKS:** {jumlah_sks}")
+else:
+    # Input manual untuk dosen/admin/prodi
+    jurusan_selected = st.sidebar.selectbox(
+        "Jurusan",
+        options=list(jurusan_mapping.keys())
+    jurusan_encoded = jurusan_mapping[jurusan_selected]
+    
+    ipk = st.sidebar.slider(
+        "IPK", 
+        min_value=0.0, 
+        max_value=4.0, 
+        value=3.0, 
+        step=0.1,
+        help="Indeks Prestasi Kumulatif"
+    )
+    
+    jumlah_sks = st.sidebar.number_input(
+        "Jumlah SKS",
+        min_value=0,
+        max_value=200,
+        value=144,
+        step=1,
+        help="Total SKS yang telah diambil"
+    )
+    
+    nilai_mk = st.sidebar.slider(
+        "Rata-rata Nilai Mata Kuliah",
+        min_value=0,
+        max_value=100,
+        value=75,
+        step=1,
+        help="Nilai rata-rata mata kuliah dalam persentase"
+    )
+    
+    kehadiran = st.sidebar.slider(
+        "Persentase Kehadiran",
+        min_value=0,
+        max_value=100,
+        value=85,
+        step=1,
+        help="Persentase kehadiran di kelas"
+    )
+    
+    tugas = st.sidebar.number_input(
+        "Jumlah Tugas Diselesaikan",
+        min_value=0,
+        max_value=50,
+        value=15,
+        step=1,
+        help="Total tugas yang telah diselesaikan"
+    )
+    
+    skor_evaluasi = st.sidebar.slider(
+        "Skor Evaluasi Dosen",
+        min_value=1.0,
+        max_value=5.0,
+        value=4.0,
+        step=0.1,
+        help="Skor evaluasi pengajaran oleh mahasiswa"
+    )
+    
+    lama_studi = st.sidebar.number_input(
+        "Lama Studi (Semester)",
+        min_value=1,
+        max_value=14,
+        value=8,
+        step=1,
+        help="Jumlah semester yang telah ditempuh"
+    )
+
+# Tombol prediksi
+if st.sidebar.button("🎯 Prediksi Kelulusan", type="primary", use_container_width=True):
+    with st.spinner("Memprediksi kelulusan..."):
+        hasil = predict_graduation(
+            model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
+            kehadiran, tugas, skor_evaluasi, lama_studi
+        )
+        
+        # Simpan hasil ke session state
+        st.session_state["prediction_result"] = hasil
+        st.session_state["input_values"] = {
+            "jurusan": jurusan_selected,
+            "ipk": ipk,
+            "jumlah_sks": jumlah_sks,
+            "nilai_mk": nilai_mk,
+            "kehadiran": kehadiran,
+            "tugas": tugas,
+            "skor_evaluasi": skor_evaluasi,
+            "lama_studi": lama_studi
+        }
+        
+        st.rerun()
+
+# Tampilkan hasil prediksi jika ada
+if "prediction_result" in st.session_state:
+    hasil = st.session_state["prediction_result"]
+    input_values = st.session_state["input_values"]
+    
+    st.header("📊 Hasil Prediksi Kelulusan")
+    
+    # Layout utama
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        # Gauge chart untuk probabilitas
+        prediksi_label = "LULUS" if hasil['prediksi'] == 1 else "TIDAK LULUS"
+        warna = "#2E8B57" if prediksi_label == "LULUS" else "#DC143C"
+        
+        st.markdown(f"""
+        <div style='border: 2px solid {warna}; border-radius: 10px; padding: 20px; text-align: center;'>
+            <h3 style='color: {warna};'>PREDIKSI: {prediksi_label}</h3>
+            <p>Confidence: <strong>{hasil['confidence']:.1%}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Gauge charts
+        st.plotly_chart(
+            create_gauge_chart(
+                hasil['probabilitas_lulus'],
+                "Probabilitas Lulus"
+            ),
+            use_container_width=True
+        )
+        
+        # Fitur engineered
+        st.markdown("### 📊 Fitur Akademik")
+        st.metric("Academic Performance", f"{hasil['academic_performance']:.2f}")
+        st.metric("Engagement Score", f"{hasil['engagement_score']:.2f}")
+        st.metric("Study Efficiency", f"{hasil['study_efficiency']:.2f}")
+        st.metric("SKS per Semester", f"{hasil['sks_per_semester']:.2f}")
+    
+    with col2:
+        # Radar chart
+        st.plotly_chart(
+            create_feature_radar_chart(
+                hasil['academic_performance'],
+                hasil['engagement_score'],
+                hasil['study_efficiency'],
+                hasil['sks_per_semester']
+            ),
+            use_container_width=True
+        )
+        
+        # Detail input
+        st.markdown("### 📝 Detail Input")
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.metric("Jurusan", input_values["jurusan"])
+            st.metric("IPK", input_values["ipk"])
+            st.metric("Jumlah SKS", input_values["jumlah_sks"])
+            st.metric("Rata-rata Nilai MK", f"{input_values['nilai_mk']}%")
+        
+        with col_b:
+            st.metric("Kehadiran", f"{input_values['kehadiran']}%")
+            st.metric("Tugas Diselesaikan", input_values["tugas"])
+            st.metric("Skor Evaluasi Dosen", input_values["skor_evaluasi"])
+            st.metric("Lama Studi", f"{input_values['lama_studi']} semester")
+        
+        # Rekomendasi
+        st.markdown("### 💡 Rekomendasi")
+        if prediksi_label == "LULUS":
+            st.success("""
+            **Kamu berada di jalur yang tepat!**
+            - Pertahankan IPK dan kehadiran
+            - Fokus pada penyelesaian tugas akhir
+            - Perbanyak pengalaman praktik melalui magang atau proyek
+            """)
+        else:
+            st.error("""
+            **Perlu peningkatan di beberapa aspek:**
+            - Tingkatkan kehadiran di kelas
+            - Perbaiki nilai mata kuliah yang rendah
+            - Konsultasi dengan dosen wali untuk strategi studi
+            - Manajemen waktu yang lebih baik
+            """)
+    
+    # Tombol reset
+    if st.button("🔄 Lakukan Prediksi Baru", type="secondary"):
+        del st.session_state["prediction_result"]
+        st.rerun()
+
+def render_prodi_dashboard():
+"""Render dashboard untuk prodi"""
+if st.session_state["prodi_data"] is None:
+st.error("Data prodi tidak tersedia")
+return
+
+data = st.session_state["prodi_data"]
+
+st.header("📊 Dashboard Program Studi")
+st.markdown("---")
+
+# Tab untuk berbagai fitur
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈 Ringkasan", 
+    "📚 Transkrip Nilai", 
+    "🎯 CPMK & CPL", 
+    "📊 Kinerja Akademik", 
+    "🔄 Update Data"
+])
+
+with tab1:
+    st.subheader("📈 Ringkasan Akademik")
+    
+    # Statistik utama
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_mahasiswa = prodi_data['transkrip']['NIM'].nunique()
-        st.metric("Total Mahasiswa", total_mahasiswa)
+        st.metric("Total Mahasiswa", 150)
     
     with col2:
-        avg_ipk = prodi_data['kinerja']['IPK_Rata2'].mean()
-        st.metric("IPK Rata-rata", f"{avg_ipk:.2f}")
+        st.metric("IPK Rata-rata", 3.45)
     
     with col3:
-        lulus_tepat_waktu = prodi_data['kinerja']['Lulus_Tepat_Waktu'].mean()
-        st.metric("Lulus Tepat Waktu", f"{lulus_tepat_waktu:.1f}%")
+        st.metric("Kelulusan Tepat Waktu", "78%")
     
     with col4:
-        avg_attendance = prodi_data['kehadiran']['Persentase_Kehadiran'].mean()
-        st.metric("Rata-rata Kehadiran", f"{avg_attendance:.1f}%")
+        st.metric("Tingkat Retensi", "92%")
     
-    # Visualisasi data
-    st.subheader("📈 Trend Kinerja Akademik")
-    
-    # IPK Trend
+    # Grafik trend IPK
+    st.subheader("Trend IPK per Semester")
     fig_ipk = px.line(
-        prodi_data['kinerja'],
-        x='Tahun',
-        y='IPK_Rata2',
-        title='Trend IPK Rata-rata per Tahun',
-        markers=True
+        data['kinerja'],
+        x="Tahun",
+        y="IPK_Rata2",
+        color="Semester",
+        markers=True,
+        title="Perkembangan IPK Rata-rata"
     )
-    fig_ipk.update_layout(yaxis_range=[2.5, 4.0])
+    st.plotly_chart(fig_ipk, use_container_width=True)
     
-    # Lulus Tepat Waktu Trend
-    fig_lulus = px.line(
-        prodi_data['kinerja'],
-        x='Tahun',
-        y='Lulus_Tepat_Waktu',
-        title='Persentase Lulus Tepat Waktu',
-        markers=True
+    # Distribusi nilai
+    st.subheader("Distribusi Nilai")
+    fig_dist = px.histogram(
+        data['transkrip'],
+        x="Nilai",
+        color="Semester",
+        barmode="group",
+        title="Distribusi Nilai per Semester"
     )
-    fig_lulus.update_layout(yaxis_range=[50, 100])
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(fig_ipk, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_lulus, use_container_width=True)
-    
-    # Distribusi Nilai
-    st.subheader("📊 Distribusi Nilai Mahasiswa")
-    
-    # Hitung distribusi nilai
-    nilai_counts = prodi_data['transkrip']['Nilai'].value_counts().reset_index()
-    nilai_counts.columns = ['Nilai', 'Jumlah']
-    
-    fig_nilai = px.bar(
-        nilai_counts,
-        x='Nilai',
-        y='Jumlah',
-        title='Distribusi Nilai',
-        color='Nilai',
-        color_discrete_sequence=px.colors.qualitative.Pastel
-    )
-    
-    st.plotly_chart(fig_nilai, use_container_width=True)
-    
-    # Pencapaian CPMK
-    st.subheader("🎯 Pencapaian CPMK Terkini")
-    
-    cpmk_summary = prodi_data['cpmk'].groupby('Nama_MK').agg({
-        'Pencapaian_Rata2': 'mean',
-        'Target': 'mean'
-    }).reset_index()
-    
-    fig_cpmk = go.Figure()
-    
-    fig_cpmk.add_trace(go.Bar(
-        x=cpmk_summary['Nama_MK'],
-        y=cpmk_summary['Pencapaian_Rata2'],
-        name='Pencapaian',
-        marker_color='#4CAF50'
-    ))
-    
-    fig_cpmk.add_trace(go.Scatter(
-        x=cpmk_summary['Nama_MK'],
-        y=cpmk_summary['Target'],
-        name='Target',
-        mode='lines+markers',
-        line=dict(color='red', width=2)
-    ))
-    
-    fig_cpmk.update_layout(
-        title='Pencapaian vs Target CPMK per Mata Kuliah',
-        xaxis_title='Mata Kuliah',
-        yaxis_title='Nilai',
-        yaxis_range=[0, 100],
-        hovermode='x unified'
-    )
-    
-    st.plotly_chart(fig_cpmk, use_container_width=True)
+    st.plotly_chart(fig_dist, use_container_width=True)
 
-def render_transkrip_nilai(prodi_data):
-    """Render halaman transkrip nilai mahasiswa"""
-    st.header("📝 Transkrip Nilai Mahasiswa")
+with tab2:
+    st.subheader("📚 Data Transkrip Nilai")
     
-    # Filter options
+    # Filter
     col1, col2 = st.columns(2)
     
     with col1:
         selected_nim = st.selectbox(
-            "Pilih NIM Mahasiswa",
-            options=prodi_data['transkrip']['NIM'].unique(),
-            format_func=lambda x: f"{x} - {prodi_data['transkrip'][prodi_data['transkrip']['NIM'] == x]['Nama'].iloc[0]}"
+            "Pilih NIM",
+            options=data['transkrip']['NIM'].unique()
         )
     
     with col2:
         selected_semester = st.selectbox(
-            "Filter Semester",
-            options=["Semua"] + sorted(prodi_data['transkrip']['Semester'].unique())
+            "Pilih Semester",
+            options=["Semua"] + sorted(data['transkrip']['Semester'].unique().tolist())
         )
     
     # Filter data
-    filtered_data = prodi_data['transkrip'][prodi_data['transkrip']['NIM'] == selected_nim]
-    
+    filtered_transkrip = data['transkrip'][data['transkrip']['NIM'] == selected_nim]
     if selected_semester != "Semua":
-        filtered_data = filtered_data[filtered_data['Semester'] == selected_semester]
-    
-    # Tampilkan data mahasiswa
-    mahasiswa_info = filtered_data.iloc[0]
-    
-    st.subheader(f"📋 Profil Akademik - {mahasiswa_info['Nama']} (NIM: {mahasiswa_info['NIM']})")
-    
-    # Hitung IPK (contoh sederhana)
-    nilai_map = {'A': 4, 'B': 3, 'C': 2, 'D': 1, 'E': 0}
-    filtered_data['Nilai_Angka'] = filtered_data['Nilai'].map(nilai_map)
-    ipk = (filtered_data['Nilai_Angka'] * filtered_data['SKS']).sum() / filtered_data['SKS'].sum()
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total SKS", filtered_data['SKS'].sum())
-    with col2:
-        st.metric("IPK", f"{ipk:.2f}")
-    with col3:
-        nilai_a = len(filtered_data[filtered_data['Nilai'] == 'A'])
-        st.metric("Nilai A", nilai_a)
-    
-    # Tampilkan transkrip
-    st.subheader("📜 Transkrip Nilai")
-    
-    # Sort by semester
-    transkrip_display = filtered_data.sort_values('Semester')
-    
-    # Convert to grade points for visualization
-    transkrip_display['Nilai_Poin'] = transkrip_display['Nilai'].map(nilai_map)
-    
-    # Tampilkan tabel
-    st.dataframe(
-        transkrip_display[['Kode_MK', 'Nama_MK', 'SKS', 'Nilai', 'Semester']],
-        use_container_width=True,
-        hide_index=True
-    )
-    
-    # Visualisasi performa per semester
-    st.subheader("📈 Grafik Perkembangan Akademik")
-    
-    fig = px.bar(
-        transkrip_display,
-        x='Semester',
-        y='Nilai_Poin',
-        color='Nama_MK',
-        title='Nilai per Semester',
-        labels={'Nilai_Poin': 'Nilai (dalam angka)'},
-        hover_data=['Nama_MK', 'Nilai'],
-        height=400
-    )
-    
-    fig.update_layout(yaxis_range=[0, 4])
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Download transkrip
-    st.subheader("📥 Export Data")
-    
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        transkrip_display.to_excel(writer, sheet_name='Transkrip', index=False)
-    
-    st.download_button(
-        label="📥 Download Transkrip (Excel)",
-        data=buffer,
-        file_name=f"transkrip_{mahasiswa_info['NIM']}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-def render_cpmk_report(prodi_data):
-    """Render laporan ketercapaian CPMK"""
-    st.header("🎯 Laporan Ketercapaian CPMK per Mata Kuliah")
-    
-    # Filter options
-    col1, col2 = st.columns(2)
-    
-    with col1:
-       selected_mk = st.selectbox(
-    "Pilih Mata Kuliah",
-    options=["Semua"] + list(prodi_data['kehadiran']['Nama_MK'].unique())
-)
-
-    
-    with col2:
-        threshold = st.slider(
-            "Threshold Pencapaian (%)",
-            min_value=0,
-            max_value=100,
-            value=75,
-            help="Nilai minimal untuk dianggap tercapai"
-        )
-    
-    # Filter data
-    if selected_mk == "Semua":
-        filtered_cpmk = prodi_data['cpmk']
-    else:
-        filtered_cpmk = prodi_data['cpmk'][prodi_data['cpmk']['Nama_MK'] == selected_mk]
-    
-    # Hitung status pencapaian
-    filtered_cpmk['Status'] = filtered_cpmk['Pencapaian_Rata2'] >= threshold
-    filtered_cpmk['Status'] = filtered_cpmk['Status'].map({True: 'Tercapai', False: 'Belum Tercapai'})
+        filtered_transkrip = filtered_transkrip[filtered_transkrip['Semester'] == selected_semester]
     
     # Tampilkan data
-    st.subheader("📋 Data Ketercapaian CPMK")
-    st.dataframe(
-        filtered_cpmk,
-        use_container_width=True,
-        hide_index=True
+    st.dataframe(filtered_transkrip, use_container_width=True)
+    
+    # Grafik nilai per semester
+    st.subheader("Perkembangan Nilai per Semester")
+    fig_nilai = px.line(
+        filtered_transkrip,
+        x="Semester",
+        y="Nilai",
+        color="Kode_MK",
+        markers=True,
+        title="Perkembangan Nilai per Mata Kuliah"
     )
-    
-    # Visualisasi
-    st.subheader("📊 Grafik Ketercapaian CPMK")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Bar chart pencapaian vs target
-        fig_bar = px.bar(
-            filtered_cpmk,
-            x='Kode_CPMK',
-            y=['Pencapaian_Rata2', 'Target'],
-            barmode='group',
-            title='Pencapaian vs Target CPMK',
-            labels={'value': 'Nilai', 'variable': 'Kategori'},
-            height=400
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-    
-    with col2:
-        # Pie chart status pencapaian
-        status_counts = filtered_cpmk['Status'].value_counts().reset_index()
-        fig_pie = px.pie(
-            status_counts,
-            values='count',
-            names='Status',
-            title='Status Pencapaian CPMK',
-            color='Status',
-            color_discrete_map={'Tercapai': '#4CAF50', 'Belum Tercapai': '#F44336'}
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-    
-    # Analisis
-    st.subheader("🔍 Analisis Ketercapaian")
-    
-    tercapai = len(filtered_cpmk[filtered_cpmk['Status'] == 'Tercapai'])
-    total_cpmk = len(filtered_cpmk)
-    persentase_tercapai = (tercapai / total_cpmk) * 100
-    
-    st.metric(
-        "Persentase CPMK Tercapai", 
-        f"{persentase_tercapai:.1f}%",
-        delta=f"{tercapai} dari {total_cpmk} CPMK"
-    )
-    
-    # Rekomendasi untuk CPMK yang belum tercapai
-    if not filtered_cpmk[filtered_cpmk['Status'] == 'Belum Tercapai'].empty:
-        st.warning("⚠️ Beberapa CPMK Belum Tercapai:")
-        for idx, row in filtered_cpmk[filtered_cpmk['Status'] == 'Belum Tercapai'].iterrows():
-            gap = row['Target'] - row['Pencapaian_Rata2']
-            st.write(f"""
-            - **{row['Kode_CPMK']}**: {row['Deskripsi_CPMK']}  
-              *Pencapaian: {row['Pencapaian_Rata2']}% (Target: {row['Target']}%, Gap: {gap:.1f}%)*  
-              💡 **Rekomendasi**: Perbaikan metode pembelajaran dan evaluasi untuk CPMK ini
-            """)
+    st.plotly_chart(fig_nilai, use_container_width=True)
 
-def render_cpl_contribution(prodi_data):
-    """Render laporan kontribusi CPMK terhadap CPL"""
-    st.header("📈 Kontribusi CPMK terhadap CPL")
+with tab3:
+    st.subheader("🎯 Pencapaian CPMK & CPL")
     
-    # Tampilkan data CPL
-    st.subheader("📋 Data Capaian Pembelajaran Lulusan (CPL)")
+    # Pencapaian CPMK
+    st.subheader("Pencapaian CPMK per Mata Kuliah")
+    fig_cpmk = px.bar(
+        data['cpmk'],
+        x="Kode_CPMK",
+        y="Pencapaian_Rata2",
+        color="Kode_MK",
+        barmode="group",
+        text="Pencapaian_Rata2",
+        title="Pencapaian Rata-rata CPMK"
+    )
+    fig_cpmk.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+    st.plotly_chart(fig_cpmk, use_container_width=True)
     
-    # Hitung rata-rata pencapaian per CPL
-    cpl_display = prodi_data['cpl'].copy()
+    # Pencapaian CPL
+    st.subheader("Pencapaian CPL")
+    fig_cpl = px.bar(
+        data['cpl'],
+        x="Kode_CPL",
+        y="Tingkat_Pencapaian",
+        color="Kode_CPL",
+        text="Tingkat_Pencapaian",
+        title="Tingkat Pencapaian CPL"
+    )
+    fig_cpl.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+    st.plotly_chart(fig_cpl, use_container_width=True)
     
-    # Visualisasi
-    col1, col2 = st.columns(2)
+    # Kontribusi CPMK ke CPL
+    st.subheader("Kontribusi CPMK ke CPL")
+    st.dataframe(data['cpl'][['Kode_CPL', 'Deskripsi_CPL', 'Kontribusi_CPMK']], use_container_width=True)
+
+with tab4:
+    st.subheader("📊 Kinerja Akademik")
     
-    with col1:
-        # Bar chart pencapaian CPL
-        fig_bar = px.bar(
-            cpl_display,
-            x='Kode_CPL',
-            y='Tingkat_Pencapaian',
-            color='Kode_CPL',
-            title='Tingkat Pencapaian CPL',
-            labels={'Tingkat_Pencapaian': 'Pencapaian (%)'},
-            height=400
-        )
-        fig_bar.update_layout(yaxis_range=[0, 100])
-        st.plotly_chart(fig_bar, use_container_width=True)
+    # Kehadiran
+    st.subheader("Rekap Kehadiran")
+    fig_kehadiran = px.box(
+        data['kehadiran'],
+        x="Kode_MK",
+        y="Persentase_Kehadiran",
+        color="Semester",
+        title="Distribusi Persentase Kehadiran per Mata Kuliah"
+    )
+    st.plotly_chart(fig_kehadiran, use_container_width=True)
     
-    with col2:
-        # Sunburst chart kontribusi CPMK ke CPL
-        # Buat mapping dari data
-        cpmk_cpl = []
-        for _, row in cpl_display.iterrows():
-            contributions = row['Kontribusi_CPMK'].split(',')
-            for contrib in contributions:
-                contrib = contrib.strip()
-                if '(' in contrib:
-                    cpmk = contrib.split('(')[0].strip()
-                    mk = contrib.split('(')[1].replace(')', '').strip()
-                    cpmk_cpl.append({
-                        'CPL': row['Kode_CPL'],
-                        'CPMK': cpmk,
-                        'MK': mk,
-                        'Pencapaian': row['Tingkat_Pencapaian']
-                    })
-        
-        if cpmk_cpl:  # Hanya buat chart jika ada data
-            df_sunburst = pd.DataFrame(cpmk_cpl)
+    # Kinerja akademik
+    st.subheader("Kinerja Akademik per Tahun")
+    fig_kinerja = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    fig_kinerja.add_trace(
+        go.Scatter(
+            x=data['kinerja']['Tahun'].astype(str) + "-" + data['kinerja']['Semester'].astype(str),
+            y=data['kinerja']['IPK_Rata2'],
+            name="IPK Rata-rata"
+        ),
+        secondary_y=False
+    )
+    
+    fig_kinerja.add_trace(
+        go.Bar(
+            x=data['kinerja']['Tahun'].astype(str) + "-" + data['kinerja']['Semester'].astype(str),
+            y=data['kinerja']['Lulus_Tepat_Waktu'],
+            name="% Lulus Tepat Waktu",
+            opacity=0.5
+        ),
+        secondary_y=True
+    )
+    
+    fig_kinerja.update_layout(
+        title="Trend Kinerja Akademik",
+        xaxis_title="Periode",
+        yaxis_title="IPK Rata-rata",
+        yaxis2_title="% Lulus Tepat Waktu"
+    )
+    
+    st.plotly_chart(fig_kinerja, use_container_width=True)
+
+with tab5:
+    st.subheader("🔄 Update Data Prodi")
+    
+    # Upload file Excel baru
+    uploaded_file = st.file_uploader(
+        "Upload File Excel Data Terbaru",
+        type=['xlsx'],
+        help="File harus sesuai dengan format yang ditentukan"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Baca file Excel
+            new_data = pd.read_excel(uploaded_file, sheet_name=None)
             
-            fig_sunburst = px.sunburst(
-                df_sunburst,
-                path=['CPL', 'MK', 'CPMK'],
-                values=[1]*len(df_sunburst),  # Equal size untuk semua
-                title='Hubungan CPMK ke CPL',
-                height=500
-            )
-            st.plotly_chart(fig_sunburst, use_container_width=True)
-    
-    # Tampilkan detail CPL
-    st.subheader("📝 Detail Kontribusi CPMK ke CPL")
-    
-    for _, row in cpl_display.iterrows():
-        with st.expander(f"{row['Kode_CPL']}: {row['Deskripsi_CPL']}"):
-            st.write(f"**Tingkat Pencapaian:** {row['Tingkat_Pencapaian']}%")
-            st.write("**Kontribusi CPMK:**")
+            # Validasi sheet yang diperlukan
+            required_sheets = ['transkrip', 'cpmk', 'cpl', 'kehadiran', 'kinerja']
+            missing_sheets = [sheet for sheet in required_sheets if sheet not in new_data]
             
-            contributions = row['Kontribusi_CPMK'].split(',')
-            for contrib in contributions:
-                contrib = contrib.strip()
-                st.write(f"- {contrib}")
-            
-            # Analisis
-            if row['Tingkat_Pencapaian'] < 75:
-                st.error("🔴 Pencapaian di bawah standar (minimal 75%)")
-                st.write("""
-                **Rekomendasi Perbaikan:**
-                - Evaluasi kontribusi CPMK terkait
-                - Perbaikan metode pembelajaran
-                - Penyesuaian bobot kontribusi
-                """)
-            elif row['Tingkat_Pencapaian'] < 85:
-                st.warning("🟡 Pencapaian memadai tetapi masih bisa ditingkatkan")
+            if missing_sheets:
+                st.error(f"Sheet berikut tidak ditemukan: {', '.join(missing_sheets)}")
             else:
-                st.success("🟢 Pencapaian sangat baik")
-
-def render_rekap_nilai_absensi(prodi_data):
-    """Render rekap nilai dan absensi"""
-    st.header("✅ Rekap Nilai dan Absensi")
-    
-    # Filter options
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        selected_mk = st.selectbox(
-            "Pilih Mata Kuliah",
-            options=["Semua"] + list(prodi_data['kehadiran']['Nama_MK'].unique())
-        )
+                # Update data di session state
+                st.session_state["prodi_data"] = {
+                    'transkrip': new_data['transkrip'],
+                    'cpmk': new_data['cpmk'],
+                    'cpl': new_data['cpl'],
+                    'kehadiran': new_data['kehadiran'],
+                    'kinerja': new_data['kinerja']
+                }
+                
+                st.success("Data berhasil diperbarui!")
+                st.rerun()
         
-    with col2:
-        attendance_threshold = st.slider(
-            "Threshold Kehadiran Minimal (%)",
-            min_value=0,
-            max_value=100,
-            value=75,
-            help="Batas minimal kehadiran untuk dianggap memenuhi syarat"
-        )
-    
-    # Filter data
-    if selected_mk == "Semua":
-        filtered_attendance = prodi_data['kehadiran']
-        filtered_grades = prodi_data['transkrip']
-    else:
-        filtered_attendance = prodi_data['kehadiran'][prodi_data['kehadiran']['Nama_MK'] == selected_mk]
-        filtered_grades = prodi_data['transkrip'][prodi_data['transkrip']['Nama_MK'] == selected_mk]
-    
-    # Gabungkan data nilai dan absensi
-    merged_data = pd.merge(
-        filtered_grades,
-        filtered_attendance,
-        on=['NIM', 'Nama', 'Kode_MK', 'Nama_MK'],
-        how='left'
-    )
-    
-    # Hitung status kehadiran
-    merged_data['Status_Kehadiran'] = merged_data['Persentase_Kehadiran'] >= attendance_threshold
-    merged_data['Status_Kehadiran'] = merged_data['Status_Kehadiran'].map({True: 'Memenuhi', False: 'Tidak Memenuhi'})
-    
-    # Tampilkan data
-    st.subheader("📋 Data Nilai dan Kehadiran")
-    st.dataframe(
-        merged_data,
-        use_container_width=True,
-        column_order=['NIM', 'Nama', 'Kode_MK', 'Nama_MK', 'Nilai', 'Persentase_Kehadiran', 'Status_Kehadiran'],
-        hide_index=True
-    )
-    
-    # Visualisasi
-    st.subheader("📊 Analisis Hubungan Kehadiran dan Nilai")
-    
-    # Convert grades to points for correlation analysis
-    nilai_map = {'A': 4, 'B': 3, 'C': 2, 'D': 1, 'E': 0}
-    merged_data['Nilai_Poin'] = merged_data['Nilai'].map(nilai_map)
-    
-    # Scatter plot
-    fig_scatter = px.scatter(
-        merged_data,
-        x='Persentase_Kehadiran',
-        y='Nilai_Poin',
-        color='Status_Kehadiran',
-        title='Hubungan Kehadiran dan Nilai',
-        labels={'Persentase_Kehadiran': 'Kehadiran (%)', 'Nilai_Poin': 'Nilai (dalam angka)'},
-        hover_data=['Nama', 'Nilai'],
-        color_discrete_map={'Memenuhi': '#4CAF50', 'Tidak Memenuhi': '#F44336'}
-    )
-    
-    fig_scatter.update_layout(
-        yaxis=dict(tickvals=[0, 1, 2, 3, 4], ticktext=['E', 'D', 'C', 'B', 'A']),
-        yaxis_range=[-0.5, 4.5]
-    )
-    
-    st.plotly_chart(fig_scatter, use_container_width=True)
-    
-    # Hitung korelasi
-    correlation = merged_data['Persentase_Kehadiran'].corr(merged_data['Nilai_Poin'])
-    
-    # Box plot per nilai
-    fig_box = px.box(
-        merged_data,
-        x='Nilai',
-        y='Persentase_Kehadiran',
-        title='Distribusi Kehadiran per Nilai',
-        color='Nilai'
-    )
-    
-    # Layout
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric(
-            "Korelasi Kehadiran-Nilai",
-            f"{correlation:.2f}",
-            help="Nilai mendekati 1 menunjukkan korelasi positif yang kuat"
-        )
-    
-    with col2:
-        st.plotly_chart(fig_box, use_container_width=True)
-    
-    # Analisis
-    st.subheader("🔍 Temuan Utama")
-    
-    # Mahasiswa dengan kehadiran rendah tapi nilai baik
-    anomaly = merged_data[
-        (merged_data['Status_Kehadiran'] == 'Tidak Memenuhi') & 
-        (merged_data['Nilai'].isin(['A', 'B']))
-    ]
-    
-    if not anomaly.empty:
-        st.warning(f"⚠️ {len(anomaly)} mahasiswa memiliki kehadiran rendah tetapi nilai baik:")
-        st.dataframe(
-            anomaly[['NIM', 'Nama', 'Nama_MK', 'Nilai', 'Persentase_Kehadiran']],
-            use_container_width=True,
-            hide_index=True
-        )
-        st.write("""
-        **Interpretasi:**
-        - Kemungkinan mahasiswa mampu belajar mandiri
-        - Atau perlu pemeriksaan validitas data kehadiran
-        """)
-    
-    # Mahasiswa dengan kehadiran baik tapi nilai buruk
-    anomaly2 = merged_data[
-        (merged_data['Status_Kehadiran'] == 'Memenuhi') & 
-        (merged_data['Nilai'].isin(['D', 'E']))
-    ]
-    
-    if not anomaly2.empty:
-        st.error(f"❌ {len(anomaly2)} mahasiswa hadir tetapi masih kesulitan:")
-        st.dataframe(
-            anomaly2[['NIM', 'Nama', 'Nama_MK', 'Nilai', 'Persentase_Kehadiran']],
-            use_container_width=True,
-            hide_index=True
-        )
-        st.write("""
-        **Rekomendasi:**
-        - Perlu pendekatan pembelajaran berbeda
-        - Konseling akademik
-        - Evaluasi metode pengajaran
-        """)
+        except Exception as e:
+            st.error(f"Error membaca file: {str(e)}")
 
-def render_evaluasi_kinerja(prodi_data):
-    """Render evaluasi kinerja akademik kolektif"""
-    st.header("📌 Evaluasi Kinerja Akademik Prodi")
+def render_admin_dashboard():
+"""Render dashboard untuk admin"""
+st.header("👨‍💼 Admin Dashboard")
+st.markdown("---")
+
+# Tab untuk berbagai fitur admin
+tab1, tab2, tab3 = st.tabs([
+    "📊 Statistik Sistem", 
+    "📂 Kelola Data", 
+    "📝 Log Aktivitas"
+])
+
+with tab1:
+    st.subheader("📊 Statistik Pengguna Sistem")
     
-    # Ringkasan statistik
-    st.subheader("📊 Indikator Kinerja Utama")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        avg_ipk = prodi_data['kinerja']['IPK_Rata2'].mean()
-        st.metric("IPK Rata-rata", f"{avg_ipk:.2f}")
-    
-    with col2:
-        lulus_tepat_waktu = prodi_data['kinerja']['Lulus_Tepat_Waktu'].mean()
-        st.metric("Lulus Tepat Waktu", f"{lulus_tepat_waktu:.1f}%")
-    
-    with col3:
-        drop_out = prodi_data['kinerja']['Drop_Out'].mean()
-        st.metric("Tingkat Drop Out", f"{drop_out:.1f}%")
-    
-    # Trend kinerja
-    st.subheader("📈 Trend Kinerja per Tahun")
-    
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True)
-    
-    # IPK Trend
-    fig.add_trace(
-        go.Scatter(
-            x=prodi_data['kinerja']['Tahun'],
-            y=prodi_data['kinerja']['IPK_Rata2'],
-            name='IPK Rata-rata',
-            mode='lines+markers'
-        ),
-        row=1, col=1
-    )
-    
-    # Lulus Tepat Waktu Trend
-    fig.add_trace(
-        go.Scatter(
-            x=prodi_data['kinerja']['Tahun'],
-            y=prodi_data['kinerja']['Lulus_Tepat_Waktu'],
-            name='Lulus Tepat Waktu (%)',
-            mode='lines+markers'
-        ),
-        row=2, col=1
-    )
-    
-    fig.update_layout(
-        height=600,
-        title_text="Trend Kinerja Akademik",
-        showlegend=True
-    )
-    
-    fig.update_yaxes(title_text="IPK", row=1, col=1)
-    fig.update_yaxes(title_text="Persentase", row=2, col=1)
-    fig.update_xaxes(title_text="Tahun", row=2, col=1)
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Benchmarking
-    st.subheader("🏆 Benchmarking dengan Standar")
-    
-    benchmark_data = {
-        'Indikator': ['IPK Rata-rata', 'Lulus Tepat Waktu', 'Tingkat Drop Out'],
-        'Nilai Prodi': [avg_ipk, lulus_tepat_waktu, drop_out],
-        'Standar Nasional': [3.0, 70, 5],
-        'Standar Universitas': [3.25, 75, 3]
+    # Sample data - in a real app this would come from a database
+    user_stats = {
+        'Role': ['Mahasiswa', 'Dosen', 'Prodi', 'Admin'],
+        'Jumlah': [1500, 85, 10, 3]
     }
     
-    benchmark_df = pd.DataFrame(benchmark_data)
+    col1, col2 = st.columns(2)
     
-    # Tampilkan tabel benchmark
-    st.dataframe(
-        benchmark_df,
-        use_container_width=True,
-        hide_index=True
+    with col1:
+        st.metric("Total Pengguna", sum(user_stats['Jumlah']))
+        st.metric("Mahasiswa Aktif", 1500)
+        st.metric("Dosen Aktif", 85)
+    
+    with col2:
+        fig_user = px.pie(
+            user_stats,
+            values='Jumlah',
+            names='Role',
+            title='Distribusi Pengguna'
+        )
+        st.plotly_chart(fig_user, use_container_width=True)
+    
+    # Aktivitas prediksi
+    st.subheader("Aktivitas Prediksi")
+    
+    prediksi_stats = {
+        'Hari': ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+        'Prediksi': [45, 78, 92, 65, 120, 15]
+    }
+    
+    fig_prediksi = px.bar(
+        prediksi_stats,
+        x='Hari',
+        y='Prediksi',
+        title='Jumlah Prediksi per Hari'
     )
-    
-    # Visualisasi benchmark
-    fig_bench = go.Figure()
-    
-    fig_bench.add_trace(go.Bar(
-        x=benchmark_df['Indikator'],
-        y=benchmark_df['Nilai Prodi'],
-        name='Prodi Kita',
-        marker_color='#4CAF50'
-    ))
-    
-    fig_bench.add_trace(go.Bar(
-        x=benchmark_df['Indikator'],
-        y=benchmark_df['Standar Universitas'],
-        name='Standar Universitas',
-        marker_color='#FFC107'
-    ))
-    
-    fig_bench.add_trace(go.Bar(
-        x=benchmark_df['Indikator'],
-        y=benchmark_df['Standar Nasional'],
-        name='Standar Nasional',
-        marker_color='#F44336'
-    ))
-    
-    fig_bench.update_layout(
-        barmode='group',
-        title='Perbandingan dengan Standar',
-        yaxis_title='Nilai'
-    )
-    
-    st.plotly_chart(fig_bench, use_container_width=True)
-    
-    # Analisis SWOT
-    st.subheader("🔍 Analisis SWOT Prodi")
-    
-    swot_col1, swot_col2 = st.columns(2)
-    
-    with swot_col1:
-        st.markdown("""
-        **💪 Kekuatan (Strengths):**
-        - IPK rata-rata di atas standar nasional
-        - Tingkat kelulusan tepat waktu yang baik
-        - Sistem monitoring akademik yang terintegrasi
-        
-        **🛑 Kelemahan (Weaknesses):**
-        - Beberapa CPMK belum mencapai target
-        - Variasi pencapaian antar mata kuliah
-        """)
-    
-    with swot_col2:
-        st.markdown("""
-        **🚀 Peluang (Opportunities):**
-        - Peningkatan metode pembelajaran
-        - Kolaborasi dengan industri
-        - Program sertifikasi tambahan
-        
-        **⚠️ Ancaman (Threats):**
-        - Persaingan dengan prodi sejenis
-        - Perubahan kurikulum nasional
-        """)
-    
-    # Rekomendasi perbaikan
-    st.subheader("📝 Rekomendasi Perbaikan")
-    
-    recommendations = [
-        "Meningkatkan kualitas pengajaran untuk mata kuliah dengan pencapaian CPMK rendah",
-        "Program pendampingan bagi mahasiswa dengan IPK di bawah 3.0",
-        "Evaluasi sistem penilaian untuk memastikan keselarasan dengan CPL",
-        "Peningkatan sistem monitoring kehadiran dan partisipasi mahasiswa",
-        "Pengembangan program magang dan kolaborasi industri"
-    ]
-    
-    for i, rec in enumerate(recommendations, 1):
-        st.write(f"{i}. {rec}")
+    st.plotly_chart(fig_prediksi, use_container_width=True)
 
-# [Previous functions remain the same until main()]
+with tab2:
+    st.subheader("📂 Kelola Data Excel")
+    
+    # Upload file Excel
+    uploaded_file = st.file_uploader(
+        "Upload File Excel",
+        type=['xlsx'],
+        key="admin_upload"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Baca file Excel
+            df = pd.read_excel(uploaded_file)
+            st.session_state["admin_excel_data"] = df
+            st.session_state["current_filename"] = uploaded_file.name
+            st.session_state["original_filename"] = uploaded_file.name
+            st.session_state["data_modified"] = False
+            
+            st.success(f"File {uploaded_file.name} berhasil diupload!")
+            st.dataframe(df.head(), use_container_width=True)
+        
+        except Exception as e:
+            st.error(f"Error membaca file: {str(e)}")
+    
+    # Edit data jika ada
+    if st.session_state["admin_excel_data"] is not None:
+        st.subheader("Edit Data")
+        
+        # Tampilkan nama file
+        st.markdown(f"**File:** {st.session_state['current_filename']}")
+        
+        # Edit dataframe
+        edited_df = st.data_editor(
+            st.session_state["admin_excel_data"],
+            num_rows="dynamic",
+            use_container_width=True
+        )
+        
+        # Tombol simpan
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Simpan Perubahan", type="primary"):
+                st.session_state["admin_excel_data"] = edited_df
+                st.session_state["data_modified"] = True
+                st.success("Perubahan disimpan di memori!")
+        
+        with col2:
+            new_filename = st.text_input(
+                "Nama File Baru",
+                value=st.session_state["current_filename"],
+                help="Ganti nama file sebelum download"
+            )
+            
+            if new_filename:
+                st.session_state["current_filename"] = new_filename
+        
+        with col3:
+            # Download file
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                edited_df.to_excel(writer, index=False)
+            
+            st.download_button(
+                label="📥 Download Excel",
+                data=buffer.getvalue(),
+                file_name=st.session_state["current_filename"],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+with tab3:
+    st.subheader("📝 Log Aktivitas Admin")
+    
+    # Tombol clear log
+    if st.button("🧹 Clear Log", type="secondary"):
+        st.session_state["admin_activity_log"] = []
+        st.rerun()
+    
+    # Tampilkan log
+    if not st.session_state["admin_activity_log"]:
+        st.info("Belum ada aktivitas yang tercatat")
+    else:
+        for log in reversed(st.session_state["admin_activity_log"]):
+            st.markdown(f"""
+            <div style='border-left: 3px solid #4a8fe7; padding-left: 10px; margin: 5px 0;'>
+                <p style='margin: 0;'><strong>{log['timestamp']}</strong></p>
+                <p style='margin: 0;'>{log['action']}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 def main():
-    """Fungsi utama aplikasi"""
-    if not st.session_state["logged_in"]:
-        render_login_page()
-    else:
-        if st.session_state["user_role"] == "Prodi":
-            render_prodi_dashboard()
-        else:
-            render_prediction_interface()
+"""Fungsi utama aplikasi"""
+if not st.session_state["logged_in"]:
+render_login_page()
+else:
+# Render header dengan info user
+render_header()
 
-# Jalankan aplikasi
-if __name__ == "__main__":
-    main()
+    # Dapatkan fitur berdasarkan role
+    role_features = get_role_specific_features()
+    
+    # Load model dan encoders
+    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
+    
+    if model is None:
+        st.error("Aplikasi tidak dapat berjalan tanpa model. Silakan hubungi administrator.")
+        st.stop()
+    
+    # Tentukan tampilan berdasarkan role
+    if st.session_state["user_role"] == "Prodi":
+        render_prodi_dashboard()
+    elif st.session_state["user_role"] == "Admin":
+        render_admin_dashboard()
+    else:
+        # Mahasiswa atau Dosen
+        st.header(f"🎓 Sistem Prediksi Kelulusan {role_features['title_suffix']}")
+        
+        # Tab untuk prediksi individual dan batch
+        if role_features["show_batch_upload"]:
+            tab1, tab2 = st.tabs(["🔍 Prediksi Individual", "📂 Batch Upload"])
+            
+            with tab1:
+                render_individual_prediction(model, jurusan_mapping, role_features)
+            
+            with tab2:
+                render_batch_upload_interface()
+        else:
+            render_individual_prediction(model, jurusan_mapping, role_features)
+
+if name == "main":
+main()
