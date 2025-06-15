@@ -171,6 +171,12 @@ def load_login_user_data(filepath, id_column="ID"):
         st.error(f"Terjadi kesalahan saat memuat data login: {e}")
         return pd.DataFrame()
 
+def render_header():
+    st.markdown("""
+        <h2 style='text-align: center; color: #4CAF50;'>📊 Sistem Informasi Kinerja Mahasiswa</h2>
+        <hr style='margin-top: -10px;'>
+    """, unsafe_allow_html=True)
+    
 def logout():
     """Fungsi logout"""
     st.session_state["logged_in"] = False
