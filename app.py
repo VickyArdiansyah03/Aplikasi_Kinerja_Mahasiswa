@@ -150,8 +150,8 @@ def load_login_user_data(filepath, id_column="ID"):
             return pd.DataFrame(data)
         elif filepath == "login_prodi.xlsx":
             data = {
-                'Nama Lengkap': ['Prodi TI', 'Prodi SI'],
-                'Kode_Prodi': ['TI01', 'SI01']
+                'Nama Lengkap': ['Admin Prodi', 'Kaprodinya', 'Koordinator'],
+                'Kode_Prodi': ['INF001', 'INF002', 'INF003']
             }
             return pd.DataFrame(data)
         else:
