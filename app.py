@@ -1497,3 +1497,4 @@ def main():
 # Jalankan aplikasi
 if __name__ == "__main__":
     main()
+
