@@ -1592,12 +1592,23 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         
         predict_button = st.sidebar.button("🔮 Prediksi Kelulusan", type="primary")
     
+    elif st.session_state["user_role"] == "Prodi":
+        st.sidebar.info("Anda login sebagai prodi")
+        with st.sidebar:
+            predict_button = False
+            jurusan_selected = False
+            ipk = False
+            jumlah_sks = False
+            nilai_mk = False
+            kehadiran = False
+            tugas = False
+            skor_evaluasi = False
+            lama_studi = False
+
     else:
         with st.sidebar:
             if st.session_state["user_role"] == "Dosen":
                 st.sidebar.info("🎯 Mode Dosen: Akses analisis mendalam tersedia")
-            elif st.session_state["user_role"] == "Prodi":
-                st.sidebar.info("🎯 Mode Prodi")
             else:
                 st.sidebar.info("⚡ Mode Admin: Akses penuh sistem")
 
