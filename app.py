@@ -502,12 +502,14 @@ def render_prodi_dashboard():
     role_features = get_role_specific_features()
     if role_features.get("can_input_cpl_cpmk"):
         st.button("Tambah Data CPL/CPMK")    
-        render_header()
+        render_header(context="prodi_dashboard")
         st.markdown("---")
         
         # Load prodi data
-        prodi_data = st.session_state["prodi_data"]
+        if "prodi_data" not in st.session_state:
+            st.session_state["prodi_data"] = load_sample_prodi_data()
         
+        prodi_data = st.session_state["prodi_data"]
         # Menu navigasi prodi
         menu_options = [
             "📊 Dashboard Utama",
@@ -515,7 +517,6 @@ def render_prodi_dashboard():
             "🎯 Laporan Ketercapaian CPMK",
             "📈 Kontribusi CPMK terhadap CPL",
             "✅ Rekap Nilai & Absensi",
-            "📌 Evaluasi Kinerja Akademik"
             "Input Data CPL/CPMK"
         ]
         
@@ -1231,7 +1232,7 @@ def render_evaluasi_kinerja(prodi_data):
     for i, rec in enumerate(recommendations, 1):
         st.write(f"{i}. {rec}")
 
-def render_header():
+def render_header(context="default"):
     """Render header dengan info user dan logout"""
     col1, col2 = st.columns([3, 1])
     
@@ -1240,7 +1241,8 @@ def render_header():
         st.caption(f"Selamat datang, *{st.session_state['user_name']}* ({st.session_state['user_role']})")
     
     with col2:
-        if st.button("🚪 Logout", type="secondary"):
+        logout_key = f"logout_button_{context}"
+        if st.button("🚪 Logout", type="secondary", key=logout_key):
             logout()
             st.rerun()
 
@@ -1357,7 +1359,7 @@ def render_batch_upload_interface():
                 return
             
             # Proses batch prediksi
-            if st.button("🚀 Proses Batch Prediksi", type="primary"):
+            if st.button("🚀 Proses Batch Prediksi", type="primary", key="proses_batch_prediksi"):
                 with st.spinner("Memproses prediksi batch..."):
                     # Proses data
                     results_df = process_batch_data(df, model, jurusan_mapping)
@@ -1478,7 +1480,7 @@ def render_batch_results():
         st.warning(f"⚠️ {error_count} data mengalami error. Pilih filter 'Hanya Error' untuk melihat detail error.")
     
     # Download results
-    if st.button("📥 Download Hasil ke Excel", type="secondary"):
+    if st.button("📥 Download Hasil ke Excel", type="secondary", key="Download"):
         buffer = io.BytesIO()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
@@ -1512,7 +1514,7 @@ def render_batch_results():
         )
     
     # Clear results
-    if st.button("🗑 Clear Results", type="secondary"):
+    if st.button("🗑 Clear Results", type="secondary", key="Clear"):
         st.session_state["batch_results"] = None
         st.rerun()
 
@@ -1525,7 +1527,7 @@ def render_prediction_interface():
         st.stop()
     
     # Render header
-    render_header()
+    render_header(context="prediction_interface")
     st.markdown("---")
     
     # Get role-specific features
@@ -1549,6 +1551,22 @@ def render_prediction_interface():
                 render_batch_upload_interface()
     else:
         render_individual_prediction(model, jurusan_mapping, role_features)
+    
+    if st.session_state["user_role"] == "Prodi":
+        # Menu khusus untuk Prodi
+        menu_options = ["🏠 Dashboard", "📋 Manajemen CPL/CPMK"]
+        selected_menu = st.sidebar.selectbox("📋 Menu Navigasi", menu_options)
+        
+        if selected_menu == "🏠 Dashboard":
+            render_prodi_dashboard()
+        elif selected_menu == "📋 Manajemen CPL/CPMK":
+            # Cek fitur CPL/CPMK
+            if role_features.get("can_input_cpl_cpmk", False):
+                show_cpl_cpmk_management()
+            else:
+                st.error("❌ Fitur tidak tersedia untuk role Anda.")
+        elif selected_menu == "📊 Laporan":
+            render_prodi_reports()
 
 def render_individual_prediction(model, jurusan_mapping, role_features):
     """Render interface prediksi individual"""
@@ -1638,7 +1656,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             lama_studi = st.number_input("Waktu Lama Studi (semester)", min_value=6, max_value=16, value=8)
             
             # Tombol prediksi
-            predict_button = st.button("🔮 Prediksi Kelulusan", type="primary")
+            predict_button = st.button("🔮 Prediksi Kelulusan", type="primary", key="Prediksi")
     
     # Main content area
     col1, col2 = st.columns([2, 1])
@@ -1940,7 +1958,7 @@ def render_excel_upload_view(jurusan_mapping):
                 st.info("📝 Data telah dimodifikasi. Jangan lupa untuk export data yang sudah diubah!")
                 
                 # Tombol untuk reset perubahan
-                if st.button("🔄 Reset ke Data Asli", type="secondary"):
+                if st.button("🔄 Reset ke Data Asli", type="secondary", key="Reset"):
                     if st.session_state.get("original_filename"):
                         # Baca ulang file asli
                         # Note: Ini memerlukan file asli masih tersedia
@@ -2130,7 +2148,7 @@ def render_export_data_interface():
             st.write(f"• Maksimum: {data_to_export['IPK'].max():.2f}")
     
     # Tombol export
-    if st.button("📥 Export Data", type="primary", use_container_width=True):
+    if st.button("📥 Export Data", type="primary", use_container_width=True, key="Export"):
         try:
             # Pastikan menggunakan data terbaru
             export_data = st.session_state["admin_excel_data"].copy()
@@ -2306,7 +2324,7 @@ def render_admin_activity_log():
     st.dataframe(log_df, use_container_width=True)
     
     # Tombol clear log
-    if st.button("🗑 Clear Log", type="secondary"):
+    if st.button("🗑 Clear Log", type="secondary", key="ClearLog"):
         st.session_state["admin_activity_log"] = []
         st.rerun()
 
@@ -2338,7 +2356,263 @@ def handle_data_change():
     """Callback untuk handle perubahan data"""
     st.session_state["data_modified"] = True
 
-# Main App
+def init_cpl_cpmk_data():
+    """Inisialisasi data CPL/CPMK di session state"""
+    if "cpl_data" not in st.session_state:
+        st.session_state.cpl_data = []
+    if "cpmk_data" not in st.session_state:
+        st.session_state.cpmk_data = []
+
+def add_cpl(kode_cpl, deskripsi_cpl, kategori="Sikap"):
+    """Menambah CPL baru"""
+    new_cpl = {
+        "id": len(st.session_state.cpl_data) + 1,
+        "kode_cpl": kode_cpl,
+        "deskripsi": deskripsi_cpl,
+        "kategori": kategori,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "created_by": st.session_state.get("username", "prodi_user")
+    }
+    st.session_state.cpl_data.append(new_cpl)
+    return True
+
+def add_cpmk(kode_cpmk, deskripsi_cpmk, mata_kuliah, sks, semester, cpl_terkait=[]):
+    """Menambah CPMK baru"""
+    new_cpmk = {
+        "id": len(st.session_state.cpmk_data) + 1,
+        "kode_cpmk": kode_cpmk,
+        "deskripsi": deskripsi_cpmk,
+        "mata_kuliah": mata_kuliah,
+        "sks": sks,
+        "semester": semester,
+        "cpl_terkait": cpl_terkait,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "created_by": st.session_state.get("username", "prodi_user")
+    }
+    st.session_state.cpmk_data.append(new_cpmk)
+    return True
+
+def delete_cpl(cpl_id):
+    """Menghapus CPL berdasarkan ID"""
+    st.session_state.cpl_data = [cpl for cpl in st.session_state.cpl_data if cpl["id"] != cpl_id]
+    return True
+
+def delete_cpmk(cpmk_id):
+    """Menghapus CPMK berdasarkan ID"""
+    st.session_state.cpmk_data = [cpmk for cpmk in st.session_state.cpmk_data if cpmk["id"] != cpmk_id]
+    return True
+
+def show_cpl_cpmk_management():
+    """Menampilkan fitur manajemen CPL/CPMK untuk role Prodi"""
+    
+    # Inisialisasi data
+    init_cpl_cpmk_data()
+    
+    st.header("📋 Manajemen CPL/CPMK")
+    st.write("Kelola Capaian Pembelajaran Lulusan (CPL) dan Capaian Pembelajaran Mata Kuliah (CPMK)")
+    
+    # Tab untuk CPL dan CPMK
+    tab_cpl, tab_cpmk, tab_mapping = st.tabs(["📚 CPL Management", "📖 CPMK Management", "🔗 CPL-CPMK Mapping"])
+    
+    with tab_cpl:
+        st.subheader("Capaian Pembelajaran Lulusan (CPL)")
+        
+        # Form input CPL baru
+        with st.expander("➕ Tambah CPL Baru", expanded=False):
+            with st.form("form_cpl"):
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    kode_cpl = st.text_input("Kode CPL*", placeholder="CPL-01")
+                    kategori_cpl = st.selectbox("Kategori CPL*", 
+                                              ["Sikap", "Pengetahuan", "Keterampilan Umum", "Keterampilan Khusus"])
+                
+                with col2:
+                    deskripsi_cpl = st.text_area("Deskripsi CPL*", 
+                                                placeholder="Masukkan deskripsi capaian pembelajaran lulusan...",
+                                                height=100)
+                
+                submitted_cpl = st.form_submit_button("Tambah CPL", type="primary")
+                
+                if submitted_cpl:
+                    if kode_cpl and deskripsi_cpl:
+                        # Validasi kode CPL tidak duplikat
+                        existing_codes = [cpl["kode_cpl"] for cpl in st.session_state.cpl_data]
+                        if kode_cpl in existing_codes:
+                            st.error("❌ Kode CPL sudah ada! Gunakan kode yang berbeda.")
+                        else:
+                            add_cpl(kode_cpl, deskripsi_cpl, kategori_cpl)
+                            st.success(f"✅ CPL {kode_cpl} berhasil ditambahkan!")
+                            st.rerun()
+                    else:
+                        st.error("❌ Harap lengkapi semua field yang wajib diisi!")
+        
+        # Tampilkan daftar CPL
+        st.subheader("Daftar CPL")
+        if st.session_state.cpl_data:
+            df_cpl = pd.DataFrame(st.session_state.cpl_data)
+            
+            # Filter berdasarkan kategori
+            kategori_filter = st.multiselect("Filter berdasarkan Kategori:", 
+                                           options=df_cpl["kategori"].unique(),
+                                           default=df_cpl["kategori"].unique())
+            
+            if kategori_filter:
+                df_filtered = df_cpl[df_cpl["kategori"].isin(kategori_filter)]
+                
+                for idx, cpl in df_filtered.iterrows():
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        
+                        with col1:
+                            st.write(f"**{cpl['kode_cpl']}** - {cpl['kategori']}")
+                            st.write(cpl['deskripsi'])
+                            st.caption(f"Dibuat: {cpl['created_at']} oleh {cpl['created_by']}")
+                        
+                        with col2:
+                            if st.button("✏️ Edit", key=f"edit_cpl_{cpl['id']}"):
+                                st.session_state[f"edit_cpl_{cpl['id']}"] = True
+                        
+                        with col3:
+                            if st.button("🗑️ Hapus", key=f"delete_cpl_{cpl['id']}", type="secondary"):
+                                if st.session_state.get(f"confirm_delete_cpl_{cpl['id']}", False):
+                                    delete_cpl(cpl['id'])
+                                    st.success(f"CPL {cpl['kode_cpl']} berhasil dihapus!")
+                                    st.rerun()
+                                else:
+                                    st.session_state[f"confirm_delete_cpl_{cpl['id']}"] = True
+                                    st.warning("Klik sekali lagi untuk konfirmasi hapus")
+                        
+                        st.divider()
+            else:
+                st.info("Pilih kategori untuk menampilkan CPL")
+        else:
+            st.info("Belum ada CPL yang ditambahkan. Silakan tambah CPL baru di atas.")
+    
+    with tab_cpmk:
+        st.subheader("Capaian Pembelajaran Mata Kuliah (CPMK)")
+        
+        # Form input CPMK baru
+        with st.expander("➕ Tambah CPMK Baru", expanded=False):
+            with st.form("form_cpmk"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    kode_cpmk = st.text_input("Kode CPMK*", placeholder="CPMK-01")
+                    mata_kuliah = st.text_input("Mata Kuliah*", placeholder="Algoritma dan Pemrograman")
+                    sks = st.number_input("SKS*", min_value=1, max_value=6, value=3)
+                
+                with col2:
+                    semester = st.selectbox("Semester*", options=list(range(1, 9)))
+                    # Pilih CPL terkait
+                    cpl_options = [f"{cpl['kode_cpl']} - {cpl['deskripsi'][:50]}..." 
+                                  for cpl in st.session_state.cpl_data]
+                    cpl_terkait = st.multiselect("CPL Terkait", options=cpl_options)
+                
+                deskripsi_cpmk = st.text_area("Deskripsi CPMK*", 
+                                            placeholder="Masukkan deskripsi capaian pembelajaran mata kuliah...",
+                                            height=100)
+                
+                submitted_cpmk = st.form_submit_button("Tambah CPMK", type="primary")
+                
+                if submitted_cpmk:
+                    if kode_cpmk and deskripsi_cpmk and mata_kuliah:
+                        # Validasi kode CPMK tidak duplikat
+                        existing_codes = [cpmk["kode_cpmk"] for cpmk in st.session_state.cpmk_data]
+                        if kode_cpmk in existing_codes:
+                            st.error("❌ Kode CPMK sudah ada! Gunakan kode yang berbeda.")
+                        else:
+                            # Extract kode CPL dari pilihan
+                            cpl_codes = [opt.split(" - ")[0] for opt in cpl_terkait]
+                            add_cpmk(kode_cpmk, deskripsi_cpmk, mata_kuliah, sks, semester, cpl_codes)
+                            st.success(f"✅ CPMK {kode_cpmk} berhasil ditambahkan!")
+                            st.rerun()
+                    else:
+                        st.error("❌ Harap lengkapi semua field yang wajib diisi!")
+        
+        # Tampilkan daftar CPMK
+        st.subheader("Daftar CPMK")
+        if st.session_state.cpmk_data:
+            df_cpmk = pd.DataFrame(st.session_state.cpmk_data)
+            
+            # Filter berdasarkan semester
+            semester_filter = st.multiselect("Filter berdasarkan Semester:", 
+                                           options=sorted(df_cpmk["semester"].unique()),
+                                           default=sorted(df_cpmk["semester"].unique()))
+            
+            if semester_filter:
+                df_filtered = df_cpmk[df_cpmk["semester"].isin(semester_filter)]
+                
+                for idx, cpmk in df_filtered.iterrows():
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        
+                        with col1:
+                            st.write(f"**{cpmk['kode_cpmk']}** - {cpmk['mata_kuliah']}")
+                            st.write(cpmk['deskripsi'])
+                            st.write(f"📚 SKS: {cpmk['sks']} | 📅 Semester: {cpmk['semester']}")
+                            if cpmk['cpl_terkait']:
+                                st.write(f"🔗 CPL Terkait: {', '.join(cpmk['cpl_terkait'])}")
+                            st.caption(f"Dibuat: {cpmk['created_at']} oleh {cpmk['created_by']}")
+                        
+                        with col2:
+                            if st.button("✏️ Edit", key=f"edit_cpmk_{cpmk['id']}"):
+                                st.session_state[f"edit_cpmk_{cpmk['id']}"] = True
+                        
+                        with col3:
+                            if st.button("🗑️ Hapus", key=f"delete_cpmk_{cpmk['id']}", type="secondary"):
+                                if st.session_state.get(f"confirm_delete_cpmk_{cpmk['id']}", False):
+                                    delete_cpmk(cpmk['id'])
+                                    st.success(f"CPMK {cpmk['kode_cpmk']} berhasil dihapus!")
+                                    st.rerun()
+                                else:
+                                    st.session_state[f"confirm_delete_cpmk_{cpmk['id']}"] = True
+                                    st.warning("Klik sekali lagi untuk konfirmasi hapus")
+                        
+                        st.divider()
+            else:
+                st.info("Pilih semester untuk menampilkan CPMK")
+        else:
+            st.info("Belum ada CPMK yang ditambahkan. Silakan tambah CPMK baru di atas.")
+    
+    with tab_mapping:
+        st.subheader("Pemetaan CPL-CPMK")
+        
+        if st.session_state.cpl_data and st.session_state.cpmk_data:
+            # Buat matriks pemetaan
+            st.write("**Matriks Pemetaan CPL-CPMK**")
+            
+            # Buat DataFrame untuk matriks
+            cpl_list = [cpl['kode_cpl'] for cpl in st.session_state.cpl_data]
+            cpmk_list = [cpmk['kode_cpmk'] for cpmk in st.session_state.cpmk_data]
+            
+            mapping_data = []
+            for cpmk in st.session_state.cpmk_data:
+                row = {"CPMK": cpmk['kode_cpmk'], "Mata Kuliah": cpmk['mata_kuliah']}
+                for cpl_code in cpl_list:
+                    row[cpl_code] = "✓" if cpl_code in cpmk.get('cpl_terkait', []) else ""
+                mapping_data.append(row)
+            
+            if mapping_data:
+                df_mapping = pd.DataFrame(mapping_data)
+                st.dataframe(df_mapping, use_container_width=True)
+                
+                # Export ke CSV
+                csv = df_mapping.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Matriks Pemetaan (CSV)",
+                    data=csv,
+                    file_name=f"pemetaan_cpl_cpmk_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+        else:
+            st.info("Silakan tambahkan CPL dan CPMK terlebih dahulu untuk melihat pemetaan.")
+
+def render_prodi_reports():
+    """Laporan untuk Prodi"""
+    st.header("📊 Laporan CPL/CPMK")
+    st.info("Fitur laporan akan segera tersedia.")
+
 def main():
     """Fungsi utama aplikasi"""
     if not st.session_state["logged_in"]:
