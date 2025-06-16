@@ -111,17 +111,6 @@ def load_sample_prodi_data():
         'kinerja': pd.DataFrame(performance_data)
     }
 
-@st.cache_data
-def load_login_user_data(filename, id_column="NIM"):
-    try:
-        df = pd.read_excel(filename)
-        if id_column not in df.columns:
-            raise ValueError("Kolom ID tidak ditemukan di file Excel")
-        return df
-    except Exception as e:
-        st.error(f"Gagal memuat data login: {e}")
-        return pd.DataFrame(columns=["Nama Lengkap", id_column])
-
 def render_login_page():
     """Render halaman login"""
     st.title("🔐 Login Prediksi Kelulusan Mahasiswa")

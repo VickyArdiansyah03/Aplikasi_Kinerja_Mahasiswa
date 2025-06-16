@@ -1,5 +1,17 @@
 import streamlit as st
+import pandas as pd
 from utils.data import load_login_user_data
+
+@st.cache_data
+def load_login_user_data(filename, id_column="NIM"):
+    try:
+        df = pd.read_excel(filename)
+        if id_column not in df.columns:
+            raise ValueError("Kolom ID tidak ditemukan di file Excel")
+        return df
+    except Exception as e:
+        st.error(f"Gagal memuat data login: {e}")
+        return pd.DataFrame(columns=["Nama Lengkap", id_column])
 
 def login(nama_user, id_user, selected_role):
     nama_user = nama_user.strip().lower()
