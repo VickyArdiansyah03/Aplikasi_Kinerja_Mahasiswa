@@ -1596,6 +1596,8 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         with st.sidebar:
             if st.session_state["user_role"] == "Dosen":
                 st.sidebar.info("🎯 Mode Dosen: Akses analisis mendalam tersedia")
+            elif st.session_state["user_role"] == "Prodi":
+                st.sidebar.info("🎯 Mode Prodi")
             else:
                 st.sidebar.info("⚡ Mode Admin: Akses penuh sistem")
 
@@ -2297,7 +2299,6 @@ def render_admin_activity_log():
         st.session_state["admin_activity_log"] = []
         st.rerun()
 
-# Fungsi untuk mengintegrasikan dengan menu utama admin
 def render_admin_dashboard():
     """Render dashboard khusus admin dengan fitur Excel management"""
     st.header("👨‍💼 Admin Dashboard")
