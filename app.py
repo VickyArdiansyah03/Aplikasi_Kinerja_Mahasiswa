@@ -16,6 +16,43 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+if 'cpmk_data' not in st.session_state:
+    st.session_state.cpmk_data = {
+        'Kode_MK': ['MK101', 'MK101', 'MK101', 'MK102', 'MK102', 'MK103', 'MK103'],
+        'Nama_MK': ['Pemrograman Dasar', 'Pemrograman Dasar', 'Pemrograman Dasar',
+                   'Struktur Data', 'Struktur Data', 'Basis Data', 'Basis Data'],
+        'Kode_CPMK': ['CPMK1', 'CPMK2', 'CPMK3', 'CPMK1', 'CPMK2', 'CPMK1', 'CPMK2'],
+        'Deskripsi_CPMK': [
+            'Mampu membuat program sederhana', 
+            'Mampu memahami struktur kontrol',
+            'Mampu menggunakan fungsi',
+            'Mampu mengimplementasikan struktur data linear',
+            'Mampu menganalisis kompleksitas algoritma',
+            'Mampu merancang basis data',
+            'Mampu mengimplementasikan query SQL'
+        ],
+        'Pencapaian_Rata2': [85, 78, 82, 75, 70, 88, 85],
+        'Target': [80, 80, 80, 75, 75, 85, 85]
+    }
+
+if 'cpl_data' not in st.session_state:
+    st.session_state.cpl_data = {
+        'Kode_CPL': ['CPL1', 'CPL2', 'CPL3', 'CPL4'],
+        'Deskripsi_CPL': [
+            'Mampu mengembangkan perangkat lunak',
+            'Mampu menganalisis kebutuhan sistem',
+            'Mampu bekerja dalam tim',
+            'Mampu berkomunikasi efektif'
+        ],
+        'Kontribusi_CPMK': [
+            'CPMK1 (MK101), CPMK1 (MK102), CPMK1 (MK103)',
+            'CPMK2 (MK101), CPMK2 (MK102)',
+            'CPMK3 (MK101)',
+            'CPMK2 (MK103)'
+        ],
+        'Tingkat_Pencapaian': [82, 76, 85, 83]
+    }
+
 # Initialize session state
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
@@ -501,7 +538,7 @@ def render_prodi_dashboard():
     """Render dashboard khusus prodi"""
     role_features = get_role_specific_features()
     if role_features.get("can_input_cpl_cpmk"):
-        st.button("Tambah Data CPL/CPMK")    
+        # st.button("Tambah Data CPL/CPMK")    
         render_header(context="prodi_dashboard")
         st.markdown("---")
         
@@ -544,16 +581,91 @@ def render_input_cpl_cpmk():
         input_jenis = st.selectbox("Jenis Data", ["CPMK", "CPL"])
         kode = st.text_input("Kode", placeholder="Contoh: CPMK1 atau CPL1")
         deskripsi = st.text_area("Deskripsi")
+        
         if input_jenis == "CPMK":
-            mata_kuliah = st.text_input("Mata Kuliah Terkait")
+            kode_mk = st.text_input("Kode Mata Kuliah", placeholder="Contoh: MK101")
+            mata_kuliah = st.text_input("Mata Kuliah Terkait", placeholder="Contoh: Pemrograman Dasar")
             target = st.slider("Target Pencapaian (%)", 0, 100, 80)
         else:
-            kontribusi = st.text_area("Kontribusi CPMK")
+            kontribusi = st.text_area("Kontribusi CPMK", placeholder="Contoh: CPMK1 (MK101), CPMK2 (MK102)")
 
         submitted = st.form_submit_button("💾 Simpan")
 
         if submitted:
-            st.success("✅ Data berhasil disimpan (simulasi).")
+            # Validasi input
+            if not kode.strip():
+                st.error("❌ Kode harus diisi!")
+                return
+            
+            if not deskripsi.strip():
+                st.error("❌ Deskripsi harus diisi!")
+                return
+
+            if input_jenis == "CPMK":
+                # Validasi untuk CPMK
+                if not kode_mk.strip():
+                    st.error("❌ Kode Mata Kuliah harus diisi!")
+                    return
+                
+                if not mata_kuliah.strip():
+                    st.error("❌ Nama Mata Kuliah harus diisi!")
+                    return
+
+                # Cek duplikasi CPMK
+                existing_cpmk = [(mk, cpmk) for mk, cpmk in zip(
+                    st.session_state.cpmk_data['Kode_MK'], 
+                    st.session_state.cpmk_data['Kode_CPMK']
+                )]
+                
+                if (kode_mk, kode) in existing_cpmk:
+                    st.error(f"❌ CPMK {kode} untuk mata kuliah {kode_mk} sudah ada!")
+                    return
+    
+                st.session_state.cpmk_data['Kode_MK'].append(kode_mk)
+                st.session_state.cpmk_data['Nama_MK'].append(mata_kuliah)
+                st.session_state.cpmk_data['Kode_CPMK'].append(kode)
+                st.session_state.cpmk_data['Deskripsi_CPMK'].append(deskripsi)
+                st.session_state.cpmk_data['Pencapaian_Rata2'].append(0)  # Default 0
+                st.session_state.cpmk_data['Target'].append(target)
+
+                st.success(f"✅ CPMK {kode} untuk mata kuliah {mata_kuliah} berhasil disimpan!")
+
+            else:
+                # Validasi untuk CPL
+                if not kontribusi.strip():
+                    st.error("❌ Kontribusi CPMK harus diisi!")
+                    return
+                
+                # Cek duplikasi CPL
+                if kode in st.session_state.cpl_data['Kode_CPL']:
+                    st.error(f"❌ CPL {kode} sudah ada!")
+                    return
+
+                # Simpan data CPL
+                st.session_state.cpl_data['Kode_CPL'].append(kode)
+                st.session_state.cpl_data['Deskripsi_CPL'].append(deskripsi)
+                st.session_state.cpl_data['Kontribusi_CPMK'].append(kontribusi)
+                st.session_state.cpl_data['Tingkat_Pencapaian'].append(0)  # Default 0
+
+                st.success(f"✅ CPL {kode} berhasil disimpan!")
+    
+    # Tampilkan data yang sudah tersimpan
+    if st.session_state.cpmk_data['Kode_CPMK'] or st.session_state.cpl_data['Kode_CPL']:
+        st.subheader("📋 Data Tersimpan")
+        
+        # Tampilkan data CPMK
+        if st.session_state.cpmk_data['Kode_CPMK']:
+            st.write("**Data CPMK:**")
+            import pandas as pd
+            df_cpmk = pd.DataFrame(st.session_state.cpmk_data)
+            st.dataframe(df_cpmk, use_container_width=True)
+        
+        # Tampilkan data CPL
+        if st.session_state.cpl_data['Kode_CPL']:
+            st.write("**Data CPL:**")
+            import pandas as pd
+            df_cpl = pd.DataFrame(st.session_state.cpl_data)
+            st.dataframe(df_cpl, use_container_width=True)
 
 def render_prodi_main_dashboard(prodi_data):
     """Render dashboard utama prodi"""
