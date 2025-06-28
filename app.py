@@ -202,18 +202,18 @@ def load_model_and_encoders():
             model = pickle.load(f)
         
         # Load label encoder
-        with open('jurusan_label_encoder.pkl', 'rb') as f:
+        with open('prodi_label_encoder.pkl', 'rb') as f:
             label_encoder = pickle.load(f)
         
         # Load feature names
         with open('feature_names.pkl', 'rb') as f:
             feature_names = pickle.load(f)
         
-        # Load jurusan mapping
-        with open('jurusan_mapping.pkl', 'rb') as f:
-            jurusan_mapping = pickle.load(f)
+        # Load prodi mapping
+        with open('prodi_mapping.pkl', 'rb') as f:
+            prodi_mapping = pickle.load(f)
         
-        return model, label_encoder, feature_names, jurusan_mapping
+        return model, label_encoder, feature_names, prodi_mapping
     
     except FileNotFoundError as e:
         st.error(f"File model tidak ditemukan: {e}")
@@ -248,7 +248,7 @@ def get_student_data(nama, nim):
     ]
     return user_row.iloc[0] if not user_row.empty else None
 
-def predict_graduation(model, jurusan_encoded, ipk, jumlah_sks, nilai_mk, 
+def predict_graduation(model, prodi_encoded, ipk, jumlah_sks, nilai_mk, 
                       kehadiran, tugas, skor_evaluasi, lama_studi):
     """Fungsi untuk memprediksi kelulusan"""
     
@@ -258,7 +258,7 @@ def predict_graduation(model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
     
     # Buat dataframe untuk prediksi
     data_prediksi = pd.DataFrame({
-        'Jurusan': [jurusan_encoded],
+        'Prodi': [prodi_encoded],
         'IPK': [ipk],
         'Jumlah SKS': [jumlah_sks],
         'Nilai Mata Kuliah': [nilai_mk],
@@ -287,25 +287,25 @@ def predict_graduation(model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
         'sks_per_semester': sks_per_semester
     }
 
-def process_batch_data(df, model, jurusan_mapping):
+def process_batch_data(df, model, prodi_mapping):
     """Proses data batch untuk prediksi"""
     results = []
     
     for idx, row in df.iterrows():
         try:
-            # Konversi jurusan ke encoded value
-            jurusan_name = row['Jurusan']
-            if jurusan_name not in jurusan_mapping:
+            # Konversi prodi ke encoded value   
+            prodi_name = row['Prodi']
+            if prodi_name not in prodi_mapping:
                 results.append({
                     'Index': idx,
                     'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                     'NIM': row.get('NIM', f'NIM_{idx}'),
-                    'Jurusan': jurusan_name,
-                    'Error': f'Jurusan "{jurusan_name}" tidak dikenal'
+                    'Prodi': prodi_name,
+                    'Error': f'Prodi "{prodi_name}" tidak dikenal'
                 })
                 continue
             
-            jurusan_encoded = jurusan_mapping[jurusan_name]
+            prodi_encoded = prodi_mapping[prodi_name]
             
             # Ekstrak data
             ipk = float(row['IPK'])
@@ -318,7 +318,7 @@ def process_batch_data(df, model, jurusan_mapping):
             
             # Prediksi
             hasil = predict_graduation(
-                model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
+                model, prodi_encoded, ipk, jumlah_sks, nilai_mk,
                 kehadiran, tugas, skor_evaluasi, lama_studi
             )
             
@@ -327,7 +327,7 @@ def process_batch_data(df, model, jurusan_mapping):
                 'Index': idx,
                 'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
-                'Jurusan': jurusan_name,
+                'Prodi': prodi_name,
                 'IPK': ipk,
                 'Prediksi': 'LULUS' if hasil['prediksi'] == 1 else 'TIDAK LULUS',
                 'Probabilitas_Lulus': hasil['probabilitas_lulus'],
@@ -345,7 +345,7 @@ def process_batch_data(df, model, jurusan_mapping):
                 'Index': idx,
                 'Nama Lengkap': row.get('Nama Lengkap', f'Mahasiswa_{idx}'),
                 'NIM': row.get('NIM', f'NIM_{idx}'),
-                'Jurusan': row.get('Jurusan', 'Unknown'),
+                'Prodi': row.get('Prodi', 'Unknown'),
                 'Error': str(e)
             })
     
@@ -369,16 +369,16 @@ def create_batch_summary_charts(df_results):
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'}
     )
     
-    # Chart 2: Distribusi per Jurusan
+    # Chart 2: Distribusi per Prodi
     # Prepare data for bar chart
-    jurusan_prediksi = valid_results.groupby(['Jurusan', 'Prediksi']).size().reset_index(name='Count')
+    prodi_prediksi = valid_results.groupby(['Prodi', 'Prediksi']).size().reset_index(name='Count')
     
     fig_bar = px.bar(
-        jurusan_prediksi,
-        x='Jurusan',
+        prodi_prediksi,
+        x='prodi',
         y='Count',
         color='Prediksi',
-        title="Prediksi Kelulusan per Jurusan",
+        title="Prediksi Kelulusan per prodi",
         color_discrete_map={'LULUS': '#2E8B57', 'TIDAK LULUS': '#DC143C'},
         barmode='group'
     )
@@ -401,7 +401,7 @@ def create_sample_template():
         'Nama Lengkap': ['4', 'Jane Smith', 'Ahmad Rahman'],
         'NIM': ['12345678', '87654321', '11223344'],
         'Role': ['Mahasiswa', 'Mahasiswa', 'Mahasiswa'],
-        'Jurusan': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
+        'prodi': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
         'IPK': [3.5, 2.8, 3.2],
         'Jumlah_SKS': [144, 144, 144],
         'Nilai_Mata_Kuliah': [85, 70, 80],
@@ -1406,7 +1406,7 @@ def render_batch_upload_interface():
     st.markdown("Upload file Excel berisi data mahasiswa untuk prediksi batch")
     
     # Load model
-    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
+    model, label_encoder, feature_names, prodi_mapping = load_model_and_encoders()
     
     if model is None:
         st.stop()
@@ -1437,7 +1437,7 @@ def render_batch_upload_interface():
     with col2:
         st.markdown("*Kolom yang diperlukan:*")
         required_columns = [
-            "Nama Lengkap", "NIM", "Jurusan", "IPK", "Jumlah_SKS",
+            "Nama Lengkap", "NIM", "prodi", "IPK", "Jumlah_SKS",
             "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas",
             "Skor_Evaluasi", "Lama_Studi"
         ]
@@ -1474,7 +1474,7 @@ def render_batch_upload_interface():
             if st.button("🚀 Proses Batch Prediksi", type="primary", key="proses_batch_prediksi"):
                 with st.spinner("Memproses prediksi batch..."):
                     # Proses data
-                    results_df = process_batch_data(df, model, jurusan_mapping)
+                    results_df = process_batch_data(df, model, prodi_mapping)
                     
                     # Simpan hasil ke session state
                     st.session_state["batch_results"] = results_df
@@ -1553,12 +1553,12 @@ def render_batch_results():
     
     with col2:
         if len(valid_results) > 0:
-            jurusan_filter = st.selectbox(
-                "Filter Jurusan",
-                ["Semua"] + list(valid_results['Jurusan'].unique())
+            prodi_filter = st.selectbox(
+                "Filter Prodi",
+                ["Semua"] + list(valid_results['Prodi'].unique())
             )
         else:
-            jurusan_filter = "Semua"
+            prodi_filter = "Semua"
     
     # Apply filters
     filtered_df = results_df.copy()
@@ -1570,8 +1570,8 @@ def render_batch_results():
     elif show_filter == "Hanya Error":
         filtered_df = filtered_df[filtered_df['Error'].notna()]
     
-    if jurusan_filter != "Semua":
-        filtered_df = filtered_df[filtered_df['Jurusan'] == jurusan_filter]
+    if prodi_filter != "Semua":
+        filtered_df = filtered_df[filtered_df['Prodi'] == prodi_filter]
     
     # PERUBAHAN UTAMA: Hapus kolom Error untuk hasil yang sukses
     display_df = filtered_df.copy()
@@ -1633,7 +1633,7 @@ def render_batch_results():
 def render_prediction_interface():
     """Render interface prediksi berdasarkan role"""
     # Load model dan encoder
-    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
+    model, label_encoder, feature_names, prodi_mapping = load_model_and_encoders()
     
     if model is None:
         st.stop()
@@ -1650,7 +1650,7 @@ def render_prediction_interface():
         if role_features.get("show_excel_management"):
             tab1, tab2, tab3 = st.tabs(["🎯 Prediksi Individual", "📂 Batch Upload", "📊 Kelola Excel"])
             with tab1:
-                render_individual_prediction(model, jurusan_mapping, role_features)
+                render_individual_prediction(model, prodi_mapping, role_features)
             with tab2:
                 render_batch_upload_interface()
             with tab3:
@@ -1658,11 +1658,11 @@ def render_prediction_interface():
         else:
             tab1, tab2 = st.tabs(["🎯 Prediksi Individual", "📂 Batch Upload"])
             with tab1:
-                render_individual_prediction(model, jurusan_mapping, role_features)
+                render_individual_prediction(model, prodi_mapping, role_features)
             with tab2:
                 render_batch_upload_interface()
     else:
-        render_individual_prediction(model, jurusan_mapping, role_features)
+        render_individual_prediction(model, prodi_mapping, role_features)
     
     if st.session_state["user_role"] == "Prodi":
         # Menu khusus untuk Prodi
@@ -1680,7 +1680,7 @@ def render_prediction_interface():
         elif selected_menu == "📊 Laporan":
             render_prodi_reports()
 
-def render_individual_prediction(model, jurusan_mapping, role_features):
+def render_individual_prediction(model, prodi_mapping, role_features):
     """Render interface prediksi individual"""
     # Sidebar untuk input
     st.sidebar.header("📝 Input Data Mahasiswa")
@@ -1697,8 +1697,8 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             st.error("Data mahasiswa tidak ditemukan")
             st.stop()
 
-        jurusan_selected = user_data["Jurusan"]
-        jurusan_encoded = jurusan_mapping.get(jurusan_selected, 0)
+        prodi_selected = user_data["Prodi"]
+        prodi_encoded = prodi_mapping.get(prodi_selected, 0)
         ipk = float(user_data["IPK"])
         # st.write("User data:", user_data)
         jumlah_sks = int(user_data["Jumlah_SKS"])
@@ -1711,7 +1711,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         with st.sidebar:
             st.subheader("📋 Data Mahasiswa (Dari Sistem)")
             st.info("Data diambil dari sistem, tidak dapat diubah.")
-            st.write(f"**Jurusan:** {jurusan_selected}")
+            st.write(f"**Prodi:** {prodi_selected}")
             st.write(f"**IPK:** {ipk}")
             st.write(f"**Jumlah SKS:** {jumlah_sks}")
             st.write(f"**Nilai Mata Kuliah:** {nilai_mk}")
@@ -1726,7 +1726,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         st.sidebar.info("Anda login sebagai prodi")
         with st.sidebar:
             predict_button = False
-            jurusan_selected = False
+            prodi_selected = False
             ipk = False
             jumlah_sks = False
             nilai_mk = False
@@ -1742,9 +1742,9 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
             else:
                 st.sidebar.info("⚡ Mode Admin: Akses penuh sistem")
 
-            jurusan_options = list(jurusan_mapping.keys())
-            jurusan_selected = st.selectbox("Jurusan", jurusan_options)
-            jurusan_encoded = jurusan_mapping[jurusan_selected]
+            prodi_options = list(prodi_mapping.keys())
+            prodi_selected = st.selectbox("Prodi", prodi_options)
+            prodi_encoded = prodi_mapping[prodi_selected]
         
             # IPK
             ipk = st.slider("IPK", min_value=0.0, max_value=4.0, value=3.0, step=0.01)
@@ -1779,7 +1779,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         if predict_button:
             # Lakukan prediksi
             hasil = predict_graduation(
-                model, jurusan_encoded, ipk, jumlah_sks, nilai_mk,
+                model, prodi_encoded, ipk, jumlah_sks, nilai_mk,
                 kehadiran, tugas, skor_evaluasi, lama_studi
             )
             
@@ -1900,7 +1900,7 @@ def render_individual_prediction(model, jurusan_mapping, role_features):
         # Tampilkan data input
         st.subheader("📝 Input Data:")
         input_data = {
-            "Jurusan": jurusan_selected,
+            "Prodi": prodi_selected,
             "IPK": ipk,
             "Jumlah SKS": jumlah_sks,
             "Nilai Mata Kuliah": nilai_mk,
@@ -1946,7 +1946,7 @@ def render_admin_excel_management():
     st.markdown("Upload, edit, dan kelola data mahasiswa dalam format Excel")
     
     # Load model untuk validasi
-    model, label_encoder, feature_names, jurusan_mapping = load_model_and_encoders()
+    model, label_encoder, feature_names, prodi_mapping = load_model_and_encoders()
     
     if model is None:
         st.stop()
@@ -1955,15 +1955,15 @@ def render_admin_excel_management():
     tab1, tab2, tab3 = st.tabs(["📤 Upload & View", "➕ Tambah Data", "📥 Export Data"])
     
     with tab1:
-        render_excel_upload_view(jurusan_mapping)
+        render_excel_upload_view(prodi_mapping)
     
     with tab2:
-        render_add_data_form(jurusan_mapping)
+        render_add_data_form(prodi_mapping)
     
     with tab3:
         render_export_data_interface()
 
-def render_excel_upload_view(jurusan_mapping):
+def render_excel_upload_view(prodi_mapping):
     """Render interface upload dan view Excel"""
     st.subheader("📁 Upload & Lihat Data Excel")
     
@@ -2004,14 +2004,14 @@ def render_excel_upload_view(jurusan_mapping):
             with col1:
                 search_term = st.text_input("🔍 Cari berdasarkan Nama/NIM", key="search_excel")
             with col2:
-                if 'Jurusan' in current_data.columns:
-                    jurusan_filter = st.selectbox(
-                        "Filter Jurusan", 
-                        ["Semua"] + list(current_data['Jurusan'].unique()),
-                        key="filter_jurusan_excel"
+                if 'Prodi' in current_data.columns:
+                    prodi_filter = st.selectbox(
+                        "Filter Prodi", 
+                        ["Semua"] + list(current_data['Prodi'].unique()),
+                        key="filter_prodi_excel"
                     )
                 else:
-                    jurusan_filter = "Semua"
+                    prodi_filter = "Semua"
             
             # Apply filters untuk display
             display_data = current_data.copy()
@@ -2027,8 +2027,8 @@ def render_excel_upload_view(jurusan_mapping):
                     display_data = current_data[current_data['Nama Lengkap'].str.contains(search_term, case=False, na=False)]
                 filter_applied = True
             
-            if jurusan_filter != "Semua" and 'Jurusan' in current_data.columns:
-                display_data = display_data[display_data['Jurusan'] == jurusan_filter]
+            if prodi_filter != "Semua" and 'prodi' in current_data.columns:
+                display_data = display_data[display_data['Prodi'] == prodi_filter]
                 filter_applied = True
             
             # Peringatan jika filter aktif
@@ -2083,7 +2083,7 @@ def render_excel_upload_view(jurusan_mapping):
     else:
         st.info("📤 Silakan upload file Excel untuk mulai mengelola data")
 
-def render_add_data_form(jurusan_mapping):
+def render_add_data_form(prodi_mapping):
     """Render form untuk menambah data baru"""
     st.subheader("➕ Tambah Data Mahasiswa Baru")
     
@@ -2101,7 +2101,7 @@ def render_add_data_form(jurusan_mapping):
         with col1:
             nama_baru = st.text_input("Nama Lengkap", placeholder="Masukkan nama mahasiswa")
             nim_baru = st.text_input("NIM", placeholder="Masukkan NIM mahasiswa")
-            jurusan_baru = st.selectbox("Jurusan", list(jurusan_mapping.keys()))
+            prodi_baru = st.selectbox("Prodi", list(prodi_mapping.keys()))
             ipk_baru = st.number_input("IPK", min_value=0.0, max_value=4.0, value=3.0, step=0.01)
             jumlah_sks_baru = st.number_input("Jumlah SKS", min_value=100, max_value=200, value=144)
         
@@ -2126,7 +2126,7 @@ def render_add_data_form(jurusan_mapping):
                 else:
                     # Tambah data baru
                     add_new_student_data(
-                        nama_baru, nim_baru, jurusan_baru, ipk_baru, jumlah_sks_baru,
+                        nama_baru, nim_baru, prodi_baru, ipk_baru, jumlah_sks_baru,
                         nilai_mk_baru, kehadiran_baru, tugas_baru, skor_evaluasi_baru, lama_studi_baru
                     )
                     st.success(f"✅ Data mahasiswa {nama_baru} berhasil ditambahkan!")
@@ -2138,7 +2138,7 @@ def render_add_data_form(jurusan_mapping):
         st.info(f"Total data: {len(st.session_state['admin_excel_data'])} mahasiswa")
         st.dataframe(st.session_state["admin_excel_data"].tail(), use_container_width=True)
 
-def add_new_student_data(nama, nim, jurusan, ipk, jumlah_sks, nilai_mk, kehadiran, tugas, skor_evaluasi, lama_studi):
+def add_new_student_data(nama, nim, prodi, ipk, jumlah_sks, nilai_mk, kehadiran, tugas, skor_evaluasi, lama_studi):
     """Tambah data mahasiswa baru ke dataset - FIXED VERSION"""
     
     # Pastikan ada data existing
@@ -2151,7 +2151,7 @@ def add_new_student_data(nama, nim, jurusan, ipk, jumlah_sks, nilai_mk, kehadira
         'Nama Lengkap': nama,
         'NIM': nim,
         'Role' : 'Mahasiswa',
-        'Jurusan': jurusan,
+        'Prodi': prodi,
         'IPK': ipk,
         'Jumlah_SKS': jumlah_sks,
         'Nilai_Mata_Kuliah': nilai_mk,
@@ -2247,11 +2247,11 @@ def render_export_data_interface():
         st.markdown("### 📊 Statistik Data")
         
         # Tampilkan statistik singkat
-        if 'Jurusan' in data_to_export.columns:
-            jurusan_counts = data_to_export['Jurusan'].value_counts()
-            st.write("**Distribusi Jurusan:**")
-            for jurusan, count in jurusan_counts.items():
-                st.write(f"• {jurusan}: {count} mahasiswa")
+        if 'Prodi' in data_to_export.columns:
+            prodi_counts = data_to_export['Prodi'].value_counts()
+            st.write("**Distribusi Prodi:**")
+            for prodi, count in prodi_counts.items():
+                st.write(f"• {prodi}: {count} mahasiswa")
         
         if 'IPK' in data_to_export.columns:
             st.write("**Statistik IPK:**")
@@ -2347,7 +2347,7 @@ def create_summary_data(data):
     summary_info = {
         'Metrik': [
             'Total Mahasiswa',
-            'Jumlah Jurusan',
+            'Jumlah Prodi',
             'Rata-rata IPK',
             'Mahasiswa IPK > 3.0',
             'Rata-rata Kehadiran',
@@ -2355,7 +2355,7 @@ def create_summary_data(data):
         ],
         'Nilai': [
             len(data),
-            data['Jurusan'].nunique() if 'Jurusan' in data.columns else 0,
+            data['Prodi'].nunique() if 'Prodi' in data.columns else 0,
             f"{data['IPK'].mean():.2f}" if 'IPK' in data.columns else 'N/A',
             len(data[data['IPK'] > 3.0]) if 'IPK' in data.columns else 0,
             f"{data['Jumlah_Kehadiran'].mean():.1f}%" if 'Jumlah_Kehadiran' in data.columns else 'N/A',
