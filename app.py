@@ -241,11 +241,12 @@ def calculate_engineered_features(ipk, nilai_mk, kehadiran, tugas, jumlah_sks, l
     return academic_performance, engagement_score, study_efficiency, sks_per_semester
 
 def get_student_data(nama, nim):
-    df_users = load_login_user_data("login_mahasiswa.xlsx")
-    user_row = df_users[
-        (df_users["Nama Lengkap"].str.strip().str.lower() == nama.strip().lower()) &
-        (df_users["NIM"].astype(str) == str(nim).strip()
-    ]  # Perhatikan penutup kurung siku dan kurung biasa yang seimbang
+ user_row = df_users[
+    (df_users["Nama Lengkap"].str.strip().str.lower() 
+        == nama.strip().lower()) &
+    (df_users["NIM"].astype(str) 
+        == str(nim).strip()
+]
     
     if not user_row.empty:
         # Pastikan semua kolom yang diperlukan ada
