@@ -181,6 +181,7 @@ def login(nama_user, id_user, selected_role):
         st.session_state["user_name"] = user_row.iloc[0]["Nama Lengkap"]
         st.session_state["user_role"] = selected_role.capitalize()
         st.session_state["user_nim"] = id_user
+        st.session_state["df_users"] = df_users  
         return True
     else:
         return False
