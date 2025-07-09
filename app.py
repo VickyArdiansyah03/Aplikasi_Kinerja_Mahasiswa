@@ -245,7 +245,7 @@ def get_student_data(nama, nim):
     user_row = df_users[
         (df_users["Nama Lengkap"].str.strip().str.lower() == nama.strip().lower()) &
         (df_users["NIM"].astype(str) == str(nim).strip()
-    ]
+    ]  # Perhatikan penutup kurung siku dan kurung biasa yang seimbang
     
     if not user_row.empty:
         # Pastikan semua kolom yang diperlukan ada
