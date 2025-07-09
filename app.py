@@ -257,6 +257,7 @@ def get_student_data(nama, nim):
         required_columns = ["Nama Lengkap", "NIM", "Prodi", "IPK", "Jumlah_SKS", 
                             "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas", 
                             "Skor_Evaluasi", "Lama_Studi"]
+        
         missing_columns = [col for col in required_columns if col not in df_users.columns]
         
         if missing_columns:
@@ -266,6 +267,7 @@ def get_student_data(nama, nim):
         return user_row.iloc[0].to_dict()
     
     return None
+
 
 
 
@@ -422,7 +424,7 @@ def create_sample_template():
         'Nama Lengkap': ['4', 'Jane Smith', 'Ahmad Rahman'],
         'NIM': ['12345678', '87654321', '11223344'],
         'Role': ['Mahasiswa', 'Mahasiswa', 'Mahasiswa'],
-        'prodi': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],
+        'Prodi': ['Teknik Informatika', 'Manajemen', 'Akuntansi'],  # ← ubah dari 'prodi'
         'IPK': [3.5, 2.8, 3.2],
         'Jumlah_SKS': [144, 144, 144],
         'Nilai_Mata_Kuliah': [85, 70, 80],
@@ -431,7 +433,7 @@ def create_sample_template():
         'Skor_Evaluasi': [4.2, 3.5, 4.0],
         'Lama_Studi': [8, 10, 8]
     }
-    
+
     return pd.DataFrame(sample_data)
 
 def create_gauge_chart(value, title, max_val=1):
