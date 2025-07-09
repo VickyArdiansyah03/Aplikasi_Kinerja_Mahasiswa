@@ -1697,16 +1697,30 @@ def render_individual_prediction(model, prodi_mapping, role_features):
             st.error("Data mahasiswa tidak ditemukan")
             st.stop()
 
-        prodi_selected = user_data["Prodi"]
-        prodi_encoded = prodi_mapping.get(prodi_selected, 0)
-        ipk = float(user_data["IPK"])
-        # st.write("User data:", user_data)
-        jumlah_sks = int(user_data["Jumlah_SKS"])
-        nilai_mk = float(user_data["Nilai_Mata_Kuliah"])
-        kehadiran = float(user_data["Jumlah_Kehadiran"])
-        tugas = int(user_data["Jumlah_Tugas"])
-        skor_evaluasi = float(user_data["Skor_Evaluasi"])
-        lama_studi = int(user_data["Lama_Studi"])
+        # Pastikan semua kolom yang diperlukan ada dalam user_data
+        required_columns = ["Prodi", "IPK", "Jumlah_SKS", "Nilai_Mata_Kuliah", 
+                          "Jumlah_Kehadiran", "Jumlah_Tugas", "Skor_Evaluasi", "Lama_Studi"]
+        
+        # Cek kolom yang ada di user_data
+        missing_columns = [col for col in required_columns if col not in user_data]
+        
+        if missing_columns:
+            st.error(f"Data mahasiswa tidak lengkap. Kolom yang hilang: {', '.join(missing_columns)}")
+            st.stop()
+
+        try:
+            prodi_selected = user_data["Prodi"]
+            prodi_encoded = prodi_mapping.get(prodi_selected, 0)
+            ipk = float(user_data["IPK"])
+            jumlah_sks = int(user_data["Jumlah_SKS"])
+            nilai_mk = float(user_data["Nilai_Mata_Kuliah"])
+            kehadiran = float(user_data["Jumlah_Kehadiran"])
+            tugas = int(user_data["Jumlah_Tugas"])
+            skor_evaluasi = float(user_data["Skor_Evaluasi"])
+            lama_studi = int(user_data["Lama_Studi"])
+        except (KeyError, ValueError) as e:
+            st.error(f"Error membaca data mahasiswa: {str(e)}")
+            st.stop()
 
         with st.sidebar:
             st.subheader("📋 Data Mahasiswa (Dari Sistem)")
@@ -1777,6 +1791,14 @@ def render_individual_prediction(model, prodi_mapping, role_features):
         st.header("📊 Hasil Prediksi")
         
         if predict_button:
+            # Pastikan semua data yang diperlukan tersedia
+            if not all([prodi_selected, ipk is not False, jumlah_sks is not False, 
+                       nilai_mk is not False, kehadiran is not False, 
+                       tugas is not False, skor_evaluasi is not False, 
+                       lama_studi is not False]):
+                st.error("Data tidak lengkap untuk melakukan prediksi")
+                return
+            
             # Lakukan prediksi
             hasil = predict_graduation(
                 model, prodi_encoded, ipk, jumlah_sks, nilai_mk,
@@ -1911,7 +1933,7 @@ def render_individual_prediction(model, prodi_mapping, role_features):
         }
         
         for key, value in input_data.items():
-            st.write(f"{key}:** {value}")
+            st.write(f"{key}: **{value}**")
         
         # Model info
         st.subheader("🤖 Model Info:")
@@ -1939,7 +1961,6 @@ def render_individual_prediction(model, prodi_mapping, role_features):
         if role_features["show_batch_upload"]:
             st.subheader("📂 Batch Processing:")
             st.info("💡 Gunakan tab 'Batch Upload' untuk memproses banyak mahasiswa sekaligus")
-
 def render_admin_excel_management():
     """Render interface untuk admin mengelola data Excel"""
     st.header("📊 Admin - Kelola Data Excel")
