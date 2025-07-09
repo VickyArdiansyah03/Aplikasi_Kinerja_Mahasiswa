@@ -241,18 +241,16 @@ def calculate_engineered_features(ipk, nilai_mk, kehadiran, tugas, jumlah_sks, l
     return academic_performance, engagement_score, study_efficiency, sks_per_semester
 
 def get_student_data(nama, nim):
- user_row = df_users[
-    (df_users["Nama Lengkap"].str.strip().str.lower() 
-        == nama.strip().lower()) &
-    (df_users["NIM"].astype(str) 
-        == str(nim).strip()
-]
+    user_row = df_users[
+        (df_users["Nama Lengkap"].str.strip().str.lower() == nama.strip().lower()) &
+        (df_users["NIM"].astype(str) == str(nim).strip())
+    ]
     
     if not user_row.empty:
         # Pastikan semua kolom yang diperlukan ada
         required_columns = ["Nama Lengkap", "NIM", "Prodi", "IPK", "Jumlah_SKS", 
-                          "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas", 
-                          "Skor_Evaluasi", "Lama_Studi"]
+                            "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas", 
+                            "Skor_Evaluasi", "Lama_Studi"]
         
         # Cek kolom yang ada di DataFrame
         missing_columns = [col for col in required_columns if col not in df_users.columns]
@@ -262,7 +260,9 @@ def get_student_data(nama, nim):
             return None
         
         return user_row.iloc[0].to_dict()
+    
     return None
+
 
 def predict_graduation(model, prodi_encoded, ipk, jumlah_sks, nilai_mk, 
                       kehadiran, tugas, skor_evaluasi, lama_studi):
