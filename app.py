@@ -340,10 +340,20 @@ def process_batch_data(df, model, prodi_mapping):
             lama_studi = int(row['Lama_Studi'])
             
             # Prediksi
-            hasil = predict_graduation(
-                model, prodi_encoded, ipk, jumlah_sks, nilai_mk,
-                kehadiran, tugas, skor_evaluasi, lama_studi
-            )
+          hasil = predict_graduation(
+    model,
+    prodi_encoded=1,  # contoh jika Teknik Informatika di-encode jadi 1
+    ipk=3.5,
+    jumlah_sks=144,
+    nilai_mk=85,
+    kehadiran=90,
+    tugas=20,
+    skor_evaluasi=4.2,
+    lama_studi=8
+)
+
+st.write(hasil)
+
             
             # Simpan hasil
             results.append({
