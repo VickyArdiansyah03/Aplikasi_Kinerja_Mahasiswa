@@ -398,7 +398,7 @@ def create_batch_summary_charts(df_results):
     
     fig_bar = px.bar(
         prodi_prediksi,
-        x='prodi',
+        x='Prodi',
         y='Count',
         color='Prediksi',
         title="Prediksi Kelulusan per prodi",
@@ -1460,7 +1460,7 @@ def render_batch_upload_interface():
     with col2:
         st.markdown("*Kolom yang diperlukan:*")
         required_columns = [
-            "Nama Lengkap", "NIM", "prodi", "IPK", "Jumlah_SKS",
+            "Nama Lengkap", "NIM", "Prodi", "IPK", "Jumlah_SKS",
             "Nilai_Mata_Kuliah", "Jumlah_Kehadiran", "Jumlah_Tugas",
             "Skor_Evaluasi", "Lama_Studi"
         ]
