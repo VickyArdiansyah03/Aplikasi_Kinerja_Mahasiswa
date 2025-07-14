@@ -149,6 +149,8 @@ def load_sample_prodi_data():
 
 def login(nama_user, id_user, selected_role):
     nama_user = nama_user.strip().lower()
+    # Hapus gelar akademik jika ada (contoh: ", S.Kom", ", M.Kom", dll)
+    nama_user = re.sub(r',\s*[a-z\.]+$', '', nama_user)
     id_user = str(id_user).strip()
     selected_role = selected_role.lower()
 
@@ -170,29 +172,7 @@ def login(nama_user, id_user, selected_role):
     else:
         return False
     
-    # Cari user di file
-    user_row = df_users[
-        (df_users["Nama Lengkap"].str.strip().str.lower() == nama_user) &
-        (df_users[df_users.columns[1]].astype(str) == id_user)  # Kolom ke-2 = NIM atau NIDN
-    ]
-    
-    if not user_row.empty:
-        st.session_state["logged_in"] = True
-        st.session_state["user_name"] = user_row.iloc[0]["Nama Lengkap"]
-        st.session_state["user_role"] = selected_role.capitalize()
-        st.session_state["user_nim"] = id_user
-        st.session_state["df_users"] = df_users  
-        return True
-    else:
-        return False
-
-def logout():
-    """Fungsi logout"""
-    st.session_state["logged_in"] = False
-    st.session_state["user_name"] = ""
-    st.session_state["user_role"] = ""
-    st.session_state["batch_results"] = None
-
+   
 # Cache untuk loading model
 @st.cache_data
 def load_model_and_encoders():
