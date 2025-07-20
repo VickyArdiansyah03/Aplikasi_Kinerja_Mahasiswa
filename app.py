@@ -1935,7 +1935,7 @@ def render_individual_prediction(model, prodi_mapping, role_features):
                 st.write("• 🏆 Siapkan diri untuk wisuda!")
     
     with col2:
-        st.header("ℹ Informasi Data")
+        st.header("Informasi Data")
         
         # User info
         st.subheader("👤 Info Pengguna:")
