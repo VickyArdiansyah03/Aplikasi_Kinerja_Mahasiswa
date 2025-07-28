@@ -2559,7 +2559,7 @@ def delete_cpmk(cpmk_id):
     return True
 
 def show_cpl_cpmk_management():
-   """Menampilkan fitur manajemen CPL/CPMK untuk role Prodi"""
+    """Menampilkan fitur manajemen CPL/CPMK untuk role Prodi"""
     
     # Inisialisasi data
     init_cpl_cpmk_data()
@@ -2777,5 +2777,5 @@ def main():
     else:
         render_prediction_interface()
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
