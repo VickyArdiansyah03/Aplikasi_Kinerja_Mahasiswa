@@ -2777,5 +2777,5 @@ def main():
     else:
         render_prediction_interface()
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
