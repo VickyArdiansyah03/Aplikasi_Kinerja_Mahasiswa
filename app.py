@@ -2514,13 +2514,26 @@ def handle_data_change():
 
 def init_cpl_cpmk_data():
     """Inisialisasi data CPL/CPMK di session state"""
+    # Initialize cpl_data as list if it doesn't exist or if it's in old dictionary format
     if "cpl_data" not in st.session_state:
         st.session_state.cpl_data = []
+    elif isinstance(st.session_state.cpl_data, dict):
+        # Convert from old dictionary format to new list format
+        st.session_state.cpl_data = []
+    
+    # Initialize cpmk_data as list if it doesn't exist or if it's in old dictionary format
     if "cpmk_data" not in st.session_state:
+        st.session_state.cpmk_data = []
+    elif isinstance(st.session_state.cpmk_data, dict):
+        # Convert from old dictionary format to new list format
         st.session_state.cpmk_data = []
 
 def add_cpl(kode_cpl, deskripsi_cpl, kategori="Sikap"):
     """Menambah CPL baru"""
+    # Ensure cpl_data is a list
+    if not isinstance(st.session_state.cpl_data, list):
+        st.session_state.cpl_data = []
+    
     new_cpl = {
         "id": len(st.session_state.cpl_data) + 1,
         "kode_cpl": kode_cpl,
@@ -2534,6 +2547,10 @@ def add_cpl(kode_cpl, deskripsi_cpl, kategori="Sikap"):
 
 def add_cpmk(kode_cpmk, deskripsi_cpmk, mata_kuliah, sks, semester, cpl_terkait=[]):
     """Menambah CPMK baru"""
+    # Ensure cpmk_data is a list
+    if not isinstance(st.session_state.cpmk_data, list):
+        st.session_state.cpmk_data = []
+    
     new_cpmk = {
         "id": len(st.session_state.cpmk_data) + 1,
         "kode_cpmk": kode_cpmk,
@@ -2550,11 +2567,21 @@ def add_cpmk(kode_cpmk, deskripsi_cpmk, mata_kuliah, sks, semester, cpl_terkait=
 
 def delete_cpl(cpl_id):
     """Menghapus CPL berdasarkan ID"""
+    # Ensure cpl_data is a list
+    if not isinstance(st.session_state.cpl_data, list):
+        st.session_state.cpl_data = []
+        return True
+    
     st.session_state.cpl_data = [cpl for cpl in st.session_state.cpl_data if cpl["id"] != cpl_id]
     return True
 
 def delete_cpmk(cpmk_id):
     """Menghapus CPMK berdasarkan ID"""
+    # Ensure cpmk_data is a list
+    if not isinstance(st.session_state.cpmk_data, list):
+        st.session_state.cpmk_data = []
+        return True
+    
     st.session_state.cpmk_data = [cpmk for cpmk in st.session_state.cpmk_data if cpmk["id"] != cpmk_id]
     return True
 
@@ -2592,6 +2619,10 @@ def show_cpl_cpmk_management():
                 
                 if submitted_cpl:
                     if kode_cpl and deskripsi_cpl:
+                        # Ensure cpl_data is a list for validation
+                        if not isinstance(st.session_state.cpl_data, list):
+                            st.session_state.cpl_data = []
+                        
                         # Validasi kode CPL tidak duplikat
                         existing_codes = [cpl["kode_cpl"] for cpl in st.session_state.cpl_data]
                         if kode_cpl in existing_codes:
@@ -2608,40 +2639,44 @@ def show_cpl_cpmk_management():
         if st.session_state.cpl_data:
             df_cpl = pd.DataFrame(st.session_state.cpl_data)
             
-            # Filter berdasarkan kategori
-            kategori_filter = st.multiselect("Filter berdasarkan Kategori:", 
-                                           options=df_cpl["kategori"].unique(),
-                                           default=df_cpl["kategori"].unique())
-            
-            if kategori_filter:
-                df_filtered = df_cpl[df_cpl["kategori"].isin(kategori_filter)]
-                
-                for idx, cpl in df_filtered.iterrows():
-                    with st.container():
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        
-                        with col1:
-                            st.write(f"**{cpl['kode_cpl']}** - {cpl['kategori']}")
-                            st.write(cpl['deskripsi'])
-                            st.caption(f"Dibuat: {cpl['created_at']} oleh {cpl['created_by']}")
-                        
-                        with col2:
-                            if st.button("✏️ Edit", key=f"edit_cpl_{cpl['id']}"):
-                                st.session_state[f"edit_cpl_{cpl['id']}"] = True
-                        
-                        with col3:
-                            if st.button("🗑️ Hapus", key=f"delete_cpl_{cpl['id']}", type="secondary"):
-                                if st.session_state.get(f"confirm_delete_cpl_{cpl['id']}", False):
-                                    delete_cpl(cpl['id'])
-                                    st.success(f"CPL {cpl['kode_cpl']} berhasil dihapus!")
-                                    st.rerun()
-                                else:
-                                    st.session_state[f"confirm_delete_cpl_{cpl['id']}"] = True
-                                    st.warning("Klik sekali lagi untuk konfirmasi hapus")
-                        
-                        st.divider()
+            # Check if DataFrame has required columns
+            if df_cpl.empty or 'kategori' not in df_cpl.columns:
+                st.info("Belum ada CPL yang ditambahkan atau data tidak valid. Silakan tambah CPL baru di atas.")
             else:
-                st.info("Pilih kategori untuk menampilkan CPL")
+                # Filter berdasarkan kategori
+                kategori_filter = st.multiselect("Filter berdasarkan Kategori:", 
+                                               options=df_cpl["kategori"].unique(),
+                                               default=df_cpl["kategori"].unique())
+            
+                if kategori_filter:
+                    df_filtered = df_cpl[df_cpl["kategori"].isin(kategori_filter)]
+                    
+                    for idx, cpl in df_filtered.iterrows():
+                        with st.container():
+                            col1, col2, col3 = st.columns([3, 1, 1])
+                            
+                            with col1:
+                                st.write(f"**{cpl['kode_cpl']}** - {cpl['kategori']}")
+                                st.write(cpl['deskripsi'])
+                                st.caption(f"Dibuat: {cpl['created_at']} oleh {cpl['created_by']}")
+                            
+                            # with col2:
+                            #     if st.button("✏️ Edit", key=f"edit_cpl_{cpl['id']}"):
+                            #         st.session_state[f"edit_cpl_{cpl['id']}"] = True
+                            
+                            with col3:
+                                if st.button("🗑️ Hapus", key=f"delete_cpl_{cpl['id']}", type="secondary"):
+                                    if st.session_state.get(f"confirm_delete_cpl_{cpl['id']}", False):
+                                        delete_cpl(cpl['id'])
+                                        st.success(f"CPL {cpl['kode_cpl']} berhasil dihapus!")
+                                        st.rerun()
+                                    else:
+                                        st.session_state[f"confirm_delete_cpl_{cpl['id']}"] = True
+                                        st.warning("Klik sekali lagi untuk konfirmasi hapus")
+                            
+                            st.divider()
+                else:
+                    st.info("Pilih kategori untuk menampilkan CPL")
         else:
             st.info("Belum ada CPL yang ditambahkan. Silakan tambah CPL baru di atas.")
     
@@ -2661,8 +2696,11 @@ def show_cpl_cpmk_management():
                 with col2:
                     semester = st.selectbox("Semester*", options=list(range(1, 9)))
                     # Pilih CPL terkait
-                    cpl_options = [f"{cpl['kode_cpl']} - {cpl['deskripsi'][:50]}..." 
-                                  for cpl in st.session_state.cpl_data]
+                    if st.session_state.cpl_data and isinstance(st.session_state.cpl_data, list):
+                        cpl_options = [f"{cpl['kode_cpl']} - {cpl['deskripsi'][:50]}..." 
+                                      for cpl in st.session_state.cpl_data]
+                    else:
+                        cpl_options = []
                     cpl_terkait = st.multiselect("CPL Terkait", options=cpl_options)
                 
                 deskripsi_cpmk = st.text_area("Deskripsi CPMK*", 
@@ -2673,6 +2711,10 @@ def show_cpl_cpmk_management():
                 
                 if submitted_cpmk:
                     if kode_cpmk and deskripsi_cpmk and mata_kuliah:
+                        # Ensure cpmk_data is a list for validation
+                        if not isinstance(st.session_state.cpmk_data, list):
+                            st.session_state.cpmk_data = []
+                        
                         # Validasi kode CPMK tidak duplikat
                         existing_codes = [cpmk["kode_cpmk"] for cpmk in st.session_state.cpmk_data]
                         if kode_cpmk in existing_codes:
@@ -2691,50 +2733,62 @@ def show_cpl_cpmk_management():
         if st.session_state.cpmk_data:
             df_cpmk = pd.DataFrame(st.session_state.cpmk_data)
             
-            # Filter berdasarkan semester
-            semester_filter = st.multiselect("Filter berdasarkan Semester:", 
-                                           options=sorted(df_cpmk["semester"].unique()),
-                                           default=sorted(df_cpmk["semester"].unique()))
-            
-            if semester_filter:
-                df_filtered = df_cpmk[df_cpmk["semester"].isin(semester_filter)]
-                
-                for idx, cpmk in df_filtered.iterrows():
-                    with st.container():
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        
-                        with col1:
-                            st.write(f"**{cpmk['kode_cpmk']}** - {cpmk['mata_kuliah']}")
-                            st.write(cpmk['deskripsi'])
-                            st.write(f"📚 SKS: {cpmk['sks']} | 📅 Semester: {cpmk['semester']}")
-                            if cpmk['cpl_terkait']:
-                                st.write(f"🔗 CPL Terkait: {', '.join(cpmk['cpl_terkait'])}")
-                            st.caption(f"Dibuat: {cpmk['created_at']} oleh {cpmk['created_by']}")
-                        
-                        with col2:
-                            if st.button("✏️ Edit", key=f"edit_cpmk_{cpmk['id']}"):
-                                st.session_state[f"edit_cpmk_{cpmk['id']}"] = True
-                        
-                        with col3:
-                            if st.button("🗑️ Hapus", key=f"delete_cpmk_{cpmk['id']}", type="secondary"):
-                                if st.session_state.get(f"confirm_delete_cpmk_{cpmk['id']}", False):
-                                    delete_cpmk(cpmk['id'])
-                                    st.success(f"CPMK {cpmk['kode_cpmk']} berhasil dihapus!")
-                                    st.rerun()
-                                else:
-                                    st.session_state[f"confirm_delete_cpmk_{cpmk['id']}"] = True
-                                    st.warning("Klik sekali lagi untuk konfirmasi hapus")
-                        
-                        st.divider()
+            # Check if DataFrame has required columns
+            if df_cpmk.empty or 'semester' not in df_cpmk.columns:
+                st.info("Belum ada CPMK yang ditambahkan atau data tidak valid. Silakan tambah CPMK baru di atas.")
             else:
-                st.info("Pilih semester untuk menampilkan CPMK")
+                # Filter berdasarkan semester
+                semester_filter = st.multiselect("Filter berdasarkan Semester:", 
+                                               options=sorted(df_cpmk["semester"].unique()),
+                                               default=sorted(df_cpmk["semester"].unique()))
+                
+                if semester_filter:
+                    df_filtered = df_cpmk[df_cpmk["semester"].isin(semester_filter)]
+                    
+                    for idx, cpmk in df_filtered.iterrows():
+                        with st.container():
+                            col1, col2, col3 = st.columns([3, 1, 1])
+                            
+                            with col1:
+                                st.write(f"**{cpmk['kode_cpmk']}** - {cpmk['mata_kuliah']}")
+                                st.write(cpmk['deskripsi'])
+                                st.write(f"📚 SKS: {cpmk['sks']} | 📅 Semester: {cpmk['semester']}")
+                                if cpmk['cpl_terkait']:
+                                    st.write(f"🔗 CPL Terkait: {', '.join(cpmk['cpl_terkait'])}")
+                                st.caption(f"Dibuat: {cpmk['created_at']} oleh {cpmk['created_by']}")
+                            
+                            # with col2:
+                            #     if st.button("✏️ Edit", key=f"edit_cpmk_{cpmk['id']}"):
+                            #         st.session_state[f"edit_cpmk_{cpmk['id']}"] = True
+                            
+                            with col3:
+                                if st.button("🗑️ Hapus", key=f"delete_cpmk_{cpmk['id']}", type="secondary"):
+                                    if st.session_state.get(f"confirm_delete_cpmk_{cpmk['id']}", False):
+                                        delete_cpmk(cpmk['id'])
+                                        st.success(f"CPMK {cpmk['kode_cpmk']} berhasil dihapus!")
+                                        st.rerun()
+                                    else:
+                                        st.session_state[f"confirm_delete_cpmk_{cpmk['id']}"] = True
+                                        st.warning("Klik sekali lagi untuk konfirmasi hapus")
+                            
+                            st.divider()
+                else:
+                    st.info("Pilih semester untuk menampilkan CPMK")
         else:
             st.info("Belum ada CPMK yang ditambahkan. Silakan tambah CPMK baru di atas.")
     
     with tab_mapping:
         st.subheader("Pemetaan CPL-CPMK")
         
-        if st.session_state.cpl_data and st.session_state.cpmk_data:
+        # Ensure both data structures are lists
+        cpl_data_valid = (st.session_state.cpl_data and 
+                         isinstance(st.session_state.cpl_data, list) and 
+                         len(st.session_state.cpl_data) > 0)
+        cpmk_data_valid = (st.session_state.cpmk_data and 
+                          isinstance(st.session_state.cpmk_data, list) and 
+                          len(st.session_state.cpmk_data) > 0)
+        
+        if cpl_data_valid and cpmk_data_valid:
             # Buat matriks pemetaan
             st.write("**Matriks Pemetaan CPL-CPMK**")
             
